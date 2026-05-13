@@ -1,119 +1,94 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import React, { useState, Suspense, useRef, useMemo, useEffect } from "react";
-import { Joyride, Step, CallBackProps, STATUS } from "react-joyride";
-import { Canvas, useFrame } from "@react-three/fiber";
+import React, { useState, Suspense, useMemo, useEffect, useRef, useCallback } from "react";
+import { Canvas, useThree } from "@react-three/fiber";
+import { OrbitControls, Stage } from "@react-three/drei";
 import {
-  OrbitControls,
-  Stage,
-  Sphere,
-  Float,
-  Text,
-  PerspectiveCamera,
-} from "@react-three/drei";
-import {
-  CheckCircle2,
-  XCircle,
-  RefreshCw,
-  Plus,
-  Minus,
-  Info,
-  FlaskConical,
-  Atom,
-  ChevronRight,
-  HelpCircle,
-  Search,
-  X,
-  ArrowRight,
-  Edit3,
-  Settings,
-  RotateCw,
-  BookOpen,
+  FlaskConical, RotateCw, ChevronRight, ChevronLeft, Search,
+  CheckCircle2, LayoutDashboard, Library, User, Scale, Calculator,
+  Info, Plus, Minus, ArrowRight, TrendingUp,
+  Lightbulb, Sparkles, BookOpen, X, ChevronDown,
+  Atom, Beaker, Zap, ZoomIn, ZoomOut, RefreshCw,
+  Link2, TableProperties, Trophy, Target,
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
-import * as THREE from "three";
-import {
-  AtomModel,
-  BondModel,
-  H2Molecule,
-  O2Molecule,
-  H2OMolecule,
-  N2Molecule,
-  NH3Molecule,
-  CH4Molecule,
-  CO2Molecule,
-  Cl2Molecule,
-  HClMolecule,
-  MolecularCluster,
-} from "./components/Molecule3D";
-import { REACTIONS, ReactionDef, MoleculeDef } from "./MoleculeLibrary";
+import { MolecularCluster } from "./components/Molecule3D";
+import { REACTIONS } from "./MoleculeLibrary";
+import { BalancerSimulation } from "./components/BalancerSimulation";
+import TenCard from "./components/ui/TenCard";
+import TenInput from "./components/ui/TenInput";
 
-// --- Constants & Data ---
-
-const TOKENS = {
-  tenRed: "#E8001D",
-  tenGreen: "#1CAB55",
-  tenInk: "#111827",
-  surfaceDark: "#0B1117",
-  border: "#E5E7EB",
-  surfaceCard: "#FFFFFF",
-  textSecondary: "#6B7280",
+// ─────────────────────────────────────────────────────────────────────────────
+// Periodic Element Data
+// ─────────────────────────────────────────────────────────────────────────────
+const ELEMENTS: Record<string, {
+  number: number; name: string; nameBn: string;
+  mass: number; color: string; bg: string; category: string;
+}> = {
+  H:  { number: 1,  name: "Hydrogen",   nameBn: "হাইড্রোজেন",   mass: 1.008,   color: "#1D4ED8", bg: "#DBEAFE", category: "Nonmetal" },
+  He: { number: 2,  name: "Helium",     nameBn: "হিলিয়াম",      mass: 4.003,   color: "#6D28D9", bg: "#EDE9FE", category: "Noble Gas" },
+  C:  { number: 6,  name: "Carbon",     nameBn: "কার্বন",        mass: 12.011,  color: "#111827", bg: "#F3F4F6", category: "Nonmetal" },
+  N:  { number: 7,  name: "Nitrogen",   nameBn: "নাইট্রোজেন",   mass: 14.007,  color: "#1E40AF", bg: "#EFF6FF", category: "Nonmetal" },
+  O:  { number: 8,  name: "Oxygen",     nameBn: "অক্সিজেন",     mass: 15.999,  color: "#B91C1C", bg: "#FEF2F2", category: "Nonmetal" },
+  Na: { number: 11, name: "Sodium",     nameBn: "সোডিয়াম",     mass: 22.990,  color: "#5B21B6", bg: "#F5F3FF", category: "Alkali Metal" },
+  Mg: { number: 12, name: "Magnesium",  nameBn: "ম্যাগনেসিয়াম", mass: 24.305,  color: "#065F46", bg: "#ECFDF5", category: "Alkaline" },
+  S:  { number: 16, name: "Sulfur",     nameBn: "সালফার",       mass: 32.06,   color: "#92400E", bg: "#FFFBEB", category: "Nonmetal" },
+  Cl: { number: 17, name: "Chlorine",   nameBn: "ক্লোরিন",      mass: 35.45,   color: "#166534", bg: "#F0FDF4", category: "Halogen" },
+  K:  { number: 19, name: "Potassium",  nameBn: "পটাসিয়াম",    mass: 39.098,  color: "#7C3AED", bg: "#F5F3FF", category: "Alkali Metal" },
+  Ca: { number: 20, name: "Calcium",    nameBn: "ক্যালসিয়াম",   mass: 40.078,  color: "#374151", bg: "#F9FAFB", category: "Alkaline" },
+  Fe: { number: 26, name: "Iron",       nameBn: "লোহা",         mass: 55.845,  color: "#78350F", bg: "#FEF3C7", category: "Transition" },
+  Cu: { number: 29, name: "Copper",     nameBn: "তামা",         mass: 63.546,  color: "#B45309", bg: "#FFFBEB", category: "Transition" },
+  Zn: { number: 30, name: "Zinc",       nameBn: "জিঙ্ক",        mass: 65.38,   color: "#155E75", bg: "#ECFEFF", category: "Transition" },
+  Ag: { number: 47, name: "Silver",     nameBn: "রুপা",         mass: 107.87,  color: "#4B5563", bg: "#F9FAFB", category: "Transition" },
 };
 
-// --- Types ---
+const getEl = (sym: string) =>
+  ELEMENTS[sym] ?? { number: 0, name: sym, nameBn: sym, mass: 0, color: "#6B7280", bg: "#F3F4F6", category: "Unknown" };
 
-interface MoleculeProps {
-  type: "H2" | "O2" | "H2O" | "N2" | "H2_single" | "N2_single";
-  position: [number, number, number];
-  count: number;
-}
+// ─────────────────────────────────────────────────────────────────────────────
+// CameraController — inside Canvas, imperative zoom
+// ─────────────────────────────────────────────────────────────────────────────
+const CameraController = ({ zoom, controlsRef }: { zoom: number; controlsRef: React.MutableRefObject<any> }) => {
+  const { camera } = useThree();
+  useEffect(() => {
+    camera.position.setLength(Math.max(3, zoom));
+    camera.updateProjectionMatrix();
+    controlsRef.current?.update();
+  }, [zoom]);
+  return null;
+};
 
-// --- 3D Molecular Components ---
-
-// --- Components ---
-
+// ─────────────────────────────────────────────────────────────────────────────
+// Tooltip
+// ─────────────────────────────────────────────────────────────────────────────
 const Tooltip = ({
-  children,
-  text,
-  title,
-  visual,
-}: {
-  children: React.ReactNode;
-  text: string;
-  title?: string;
-  visual?: React.ReactNode;
-}) => {
-  const [show, setShow] = useState(false);
+  content, children, side = "top",
+}: { content: React.ReactNode; children: React.ReactNode; side?: "top" | "bottom" }) => {
+  const [visible, setVisible] = useState(false);
   return (
-    <div
-      className="relative inline-block"
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
+    <div className="relative inline-flex" style={{ isolation: "isolate" }}
+      onMouseEnter={() => setVisible(true)}
+      onMouseLeave={() => setVisible(false)}
+      onClick={() => setVisible((v) => !v)}
     >
       {children}
       <AnimatePresence>
-        {show && (
+        {visible && (
           <motion.div
-            initial={{ opacity: 0, y: 5 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 5 }}
-            className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-64 p-3 bg-black text-white rounded-lg z-[100] shadow-xl pointer-events-none"
+            initial={{ opacity: 0, scale: 0.9, y: side === "top" ? 4 : -4 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, y: side === "top" ? 4 : -4 }}
+            transition={{ duration: 0.15 }}
+            className="tooltip-card"
+            style={{
+              position: "absolute",
+              zIndex: 500,
+              bottom: side === "top" ? "calc(100% + 6px)" : "auto",
+              top: side === "bottom" ? "calc(100% + 6px)" : "auto",
+              left: "50%",
+              transform: "translateX(-50%)",
+              pointerEvents: "none",
+            }}
           >
-            {title && (
-              <h5 className="font-bold text-xs mb-1 text-white">{title}</h5>
-            )}
-            <p className="text-[10px] text-gray-300 font-medium leading-relaxed">
-              {text}
-            </p>
-            {visual && (
-              <div className="mt-2 text-center p-2 bg-gray-800 rounded">
-                {visual}
-              </div>
-            )}
-            <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-black" />
+            {content}
           </motion.div>
         )}
       </AnimatePresence>
@@ -121,1522 +96,1631 @@ const Tooltip = ({
   );
 };
 
-const GroupedMolecules = ({
-  type,
-  count,
-  basePosition,
-  atoms,
+// ─────────────────────────────────────────────────────────────────────────────
+// PeriodicAtomCard
+// ─────────────────────────────────────────────────────────────────────────────
+const PeriodicAtomCard = ({
+  symbol, count, size = "md", isHighlighted, onSelect, onDeselect,
 }: {
-  type: string;
-  count: number;
-  basePosition: [number, number, number];
-  atoms?: Record<string, number>;
+  symbol: string; count?: number; size?: "sm" | "md" | "lg";
+  isHighlighted?: boolean; onSelect?: () => void; onDeselect?: () => void;
 }) => {
-  const elements = [];
-  const spacing = 3.5; // Increased spacing for larger clusters
-  const jitter = 0.3;
-
-  for (let i = 0; i < count; i++) {
-    // 3x3 Grid layout for better organization of many molecules
-    const row = Math.floor(i / 3);
-    const col = i % 3;
-    const layer = Math.floor(i / 9);
-
-    // adding stable pseudo-random jitter based on index
-    const offsetX = Math.sin(i * 1.5) * jitter;
-    const offsetY = Math.cos(i * 1.5) * jitter;
-    const offsetZ = Math.sin(i * 0.7) * jitter + layer * -spacing;
-
-    const pos: [number, number, number] = [
-      basePosition[0] + (col - 1) * spacing + offsetX,
-      basePosition[1] + (row - 1) * spacing + offsetY,
-      basePosition[2] + offsetZ,
-    ];
-
-    if (type === "H2")
-      elements.push(<H2Molecule key={`h2-${i}`} position={pos} />);
-    else if (type === "O2")
-      elements.push(<O2Molecule key={`o2-${i}`} position={pos} />);
-    else if (type === "H2O")
-      elements.push(<H2OMolecule key={`h2o-${i}`} position={pos} />);
-    else if (type === "N2")
-      elements.push(<N2Molecule key={`n2-${i}`} position={pos} />);
-    else if (type === "NH3")
-      elements.push(<NH3Molecule key={`nh3-${i}`} position={pos} />);
-    else if (type === "CH4")
-      elements.push(<CH4Molecule key={`ch4-${i}`} position={pos} />);
-    else if (type === "CO2")
-      elements.push(<CO2Molecule key={`co2-${i}`} position={pos} />);
-    else if (type === "Cl2")
-      elements.push(<Cl2Molecule key={`cl2-${i}`} position={pos} />);
-    else if (type === "HCl")
-      elements.push(<HClMolecule key={`hcl-${i}`} position={pos} />);
-    else if (atoms)
-      elements.push(
-        <MolecularCluster key={`${type}-${i}`} atoms={atoms} position={pos} />,
-      );
-  }
-
-  const translations: Record<string, string> = {
-    H2: "হাইড্রোজেন",
-    O2: "অক্সিজেন",
-    H2O: "পানি",
-    N2: "নাইট্রোজেন",
-    NH3: "অ্যামোনিয়া",
-    CH4: "মিথেন",
-    CO2: "কার্বন ডাইঅক্সাইড",
-    C6H12O6: "গ্লুকোজ",
-    Cu: "কপার",
-    HNO3: "নাইট্রিক এসিড",
-    "Cu(NO3)2": "কপার নাইট্রেট",
-    NO: "নাইট্রিক অক্সাইড",
-    C6H5C2H5: "ইথাইলবেনজিন",
-    KMnO4: "পটাশিয়াম পারম্যাঙ্গানেট",
-    HCl: "হাইড্রোক্লোরিক এসিড",
-    KCl: "পটাশিয়াম ক্লোরাইড",
-    MnCl2: "ম্যাঙ্গানিজ ক্লোরাইড",
-    Cl2: "ক্লোরিন",
-  };
-
+  const el = getEl(symbol);
+  const s = {
+    sm: { card: "w-11 h-[60px]", num: "text-[7px]", sym: "text-sm",  name: "text-[6px]", mass: "text-[6px]" },
+    md: { card: "w-14 h-[72px]", num: "text-[8px]", sym: "text-lg",  name: "text-[7px]", mass: "text-[7px]" },
+    lg: { card: "w-18 h-[86px]", num: "text-[9px]", sym: "text-2xl", name: "text-[8px]", mass: "text-[8px]" },
+  }[size];
   return (
-    <group>
-      {elements}
-      <Text
-        position={[basePosition[0] + 0.5, basePosition[1] - 1.2, 0]}
-        fontSize={0.4}
-        color="white"
-        font="https://fonts.gstatic.com/s/hindsiliguri/v12/ijwb8z7C9ZNoYk2090uG3C7S6Z6_.woff"
-        anchorX="center"
-        anchorY="middle"
-      >
-        {translations[type] || type}
-      </Text>
-    </group>
-  );
-};
-
-// --- UI Components ---
-
-const CoefficientControl = ({
-  value,
-  onChange,
-  label,
-}: {
-  value: number;
-  onChange: (val: number) => void;
-  label: string;
-}) => {
-  // Parse sub-scripts for formula display
-  const parts = label.split(/([0-9]+)/);
-  const formattedLabel = parts.map((part, i) =>
-    /^[0-9]+$/.test(part) ? (
-      <sub key={i} className="text-xs">
-        {part}
-      </sub>
-    ) : (
-      part
-    ),
-  );
-
-  return (
-    <div className="flex flex-col items-center gap-2 group/coeff">
-      <div className="flex items-center border-2 rounded-2xl overflow-hidden bg-white transition-all border-[#E5E7EB] hover:border-gray-400">
-        <button
-          onClick={() => onChange(Math.max(0.5, value - 0.5))}
-          className="px-3 h-14 border-r border-[#E5E7EB] hover:bg-gray-50 transition-colors text-gray-400 hover:text-[#E8001D]"
-        >
-          <Minus size={16} />
-        </button>
-        <input
-          type="number"
-          step="0.5"
-          min="0.5"
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value) || 1)}
-          className="w-16 h-14 text-center text-xl font-black font-['Inter'] text-[#E8001D] outline-none bg-transparent m-0 p-0"
-          style={{
-            appearance: "textfield",
-            WebkitAppearance: "none",
-            MozAppearance: "textfield",
-          }}
-        />
-        <button
-          onClick={() => onChange(value + 0.5)}
-          className="px-3 h-14 border-l border-[#E5E7EB] bg-[#1CAB55]/5 text-[#1CAB55] hover:bg-[#1CAB55]/10 transition-colors"
-        >
-          <Plus size={16} />
-        </button>
+    <Tooltip side="bottom" content={
+      <div>
+        <p className="font-bold" style={{ color: el.color }}>{el.nameBn} / {el.name}</p>
+        <p className="text-[var(--gray-500)]">#{el.number} · {el.mass} g/mol</p>
+        <p className="text-[var(--gray-400)]">{el.category}</p>
       </div>
-      <span className="font-bold text-xl font-['Inter'] text-[#111827]">
-        {formattedLabel}
-      </span>
-    </div>
-  );
-};
-
-const BalanceSeesaw = ({
-  element,
-  countLeft,
-  countRight,
-}: {
-  element: string;
-  countLeft: number;
-  countRight: number;
-}) => {
-  const rotation = Math.max(-15, Math.min(15, (countLeft - countRight) * 5));
-  const colors: Record<string, string> = {
-    H: "#60A5FA",
-    O: "#EF4444",
-    N: "#3B82F6",
-    C: "#1F2937",
-    Cu: "#B45309",
-    K: "#8B5CF6",
-    Mn: "#EC4899",
-    Cl: "#4ADE80",
-  };
-
-  return (
-    <div className="flex flex-col items-center gap-2 p-4 bg-gray-50 border border-[#E5E7EB] rounded-2xl w-full shadow-sm">
-      <div className="flex justify-between w-full text-xs font-bold text-gray-400 mb-2 px-4">
-        <span>{countLeft}</span>
-        <span>{countRight}</span>
-      </div>
-      <motion.div
-        animate={{ rotate: rotation }}
-        transition={{ type: "spring", stiffness: 100 }}
-        className="w-full h-1 bg-gray-800 relative rounded-full"
-      >
-        <div className="absolute left-1/2 -top-1 w-2 h-2 rounded-full transform -translate-x-1/2 bg-gray-800" />
-      </motion.div>
-      <div className="w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-b-[15px] border-b-gray-400 mt-[-2px] flex items-end justify-center">
-        <span className="text-[10px] font-bold text-white mb-[-25px] z-10">
-          {element}
-        </span>
-      </div>
-    </div>
-  );
-};
-
-// --- Main Application ---
-
-export default function App() {
-  const [currentReactionIdx, setCurrentReactionIdx] = useState(0);
-  const currentReaction = REACTIONS[currentReactionIdx];
-
-  const [coeffs, setCoeffs] = useState<Record<string, number>>({});
-  const [view, setView] = useState<
-    "balance" | "stoichiometry" | "molecules" | "ratios"
-  >("molecules");
-  const [selectedMolecule, setSelectedMolecule] = useState<string | null>(null);
-  const [showBonds, setShowBonds] = useState(true);
-  const [bondLength, setBondLength] = useState(1);
-  const [result, setResult] = useState<{
-    balanced: boolean;
-    msg: string;
-    subMsg: string;
-  } | null>(null);
-  const [showHint, setShowHint] = useState(false);
-
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [pendingReactionIdx, setPendingReactionIdx] = useState<number | null>(
-    null,
-  );
-
-  const [simSpeed, setSimSpeed] = useState(1);
-  const [rotateSpeed, setRotateSpeed] = useState(1);
-  const [showSettings, setShowSettings] = useState(false);
-  const [showSummary, setShowSummary] = useState(false);
-
-  const [runTutorial, setRunTutorial] = useState(false);
-  const tutorialSteps: Step[] = [
-    {
-      target: ".tour-step-reaction",
-      content:
-        "Click here to select a reaction to balance. We have many examples to choose from!",
-      disableBeacon: true,
-    },
-    {
-      target: ".tour-step-balancer",
-      content:
-        "Here you can adjust the coefficients. Try changing the numbers to balance the atoms on both sides of the equation.",
-    },
-    {
-      target: ".tour-step-tracking",
-      content:
-        "Watch this dashboard! It tells you how many atoms of each element are on the left and right sides. Your goal is to make them match.",
-    },
-    {
-      target: ".tour-step-exam",
-      content:
-        'If you are stuck, you can use the hints or "Show Answer" button that appears when the balance is incorrect. First examine to check!',
-    },
-    {
-      target: ".tour-step-views",
-      content:
-        "Switch between 3D Molecules, Balance Verification, and Stoichiometry calculations to learn more about the reaction!",
-    },
-  ];
-
-  const handleJoyrideCallback = (data: CallBackProps) => {
-    const { status } = data;
-    const finishedStatuses: string[] = [STATUS.FINISHED, STATUS.SKIPPED];
-    if (finishedStatuses.includes(status)) {
-      setRunTutorial(false);
-      localStorage.setItem("tutorialCompleted", "true");
-    }
-  };
-
-  useEffect(() => {
-    const tutorialCompleted = localStorage.getItem("tutorialCompleted");
-    if (!tutorialCompleted) {
-      setTimeout(() => setRunTutorial(true), 1000);
-    }
-  }, []);
-
-  const filteredReactions = useMemo(() => {
-    if (!searchQuery) return REACTIONS;
-    return REACTIONS.filter(
-      (r) =>
-        r.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        r.formula.toLowerCase().includes(searchQuery.toLowerCase()),
-    );
-  }, [searchQuery]);
-
-  const handleReset = () => {
-    const initialCoeffs: Record<string, number> = {};
-    currentReaction.reactants.forEach((r) => (initialCoeffs[r.id] = 1));
-    currentReaction.products.forEach((p) => (initialCoeffs[p.id] = 1));
-    setCoeffs(initialCoeffs);
-    setResult(null);
-    setShowHint(false);
-  };
-
-  // Initialize coefficients when reaction changes
-  useEffect(() => {
-    handleReset();
-  }, [currentReactionIdx]);
-
-  const updateCoeff = (id: string, val: number) => {
-    setCoeffs((prev) => ({ ...prev, [id]: val }));
-    setResult(null);
-  };
-
-  const atomCounts = useMemo(() => {
-    const left: Record<string, number> = {};
-    const right: Record<string, number> = {};
-
-    currentReaction.reactants.forEach((r) => {
-      const c = Number(coeffs[r.id] || 1);
-      Object.entries(r.atoms).forEach(([atom, count]) => {
-        left[atom] = (left[atom] || 0) + Number(count) * c;
-      });
-    });
-
-    currentReaction.products.forEach((p) => {
-      const c = Number(coeffs[p.id] || 1);
-      Object.entries(p.atoms).forEach(([atom, count]) => {
-        right[atom] = (right[atom] || 0) + Number(count) * c;
-      });
-    });
-
-    return { left, right };
-  }, [coeffs, currentReactionIdx]);
-
-  const allElements = useMemo(() => {
-    const elements = new Set<string>();
-    currentReaction.reactants.forEach((r) =>
-      Object.keys(r.atoms).forEach((e) => elements.add(e)),
-    );
-    return Array.from(elements);
-  }, [currentReactionIdx]);
-
-  const checkBalance = () => {
-    let balanced = true;
-    allElements.forEach((e) => {
-      if (atomCounts.left[e] !== atomCounts.right[e]) balanced = false;
-    });
-
-    if (balanced) {
-      setResult({
-        balanced: true,
-        msg: "অভিনন্দন! সমীকরণটি সঠিক হয়েছে।",
-        subMsg: "তুমি পরমাণুর সমতা করতে পেরেছো।",
-      });
-      setShowHint(false);
-    } else {
-      setResult({
-        balanced: false,
-        msg: "চেষ্টা চালিয়ে যাও!",
-        subMsg: "পরমাণুর সংখ্যা মেলাতে আরও কিছু সহগ নিয়ে পরীক্ষা করো।",
-      });
-      setShowHint(true);
-    }
-  };
-
-  const confirmReactionChange = (idx: number) => {
-    // Always prompt for confirmation when searching/selecting another reaction, unless it's the current one
-    if (idx !== currentReactionIdx) {
-      setPendingReactionIdx(idx);
-    } else {
-      setIsSearchOpen(false);
-    }
-  };
-
-  return (
-    <div className="flex flex-col h-screen bg-[#F9FAFB] font-['Hind_Siliguri'] overflow-hidden">
-      <Joyride
-        steps={tutorialSteps}
-        run={runTutorial}
-        continuous={true}
-        showProgress={true}
-        showSkipButton={true}
-        callback={handleJoyrideCallback}
-        styles={{
-          options: {
-            primaryColor: "#E8001D",
-            zIndex: 1000,
-          },
+    }>
+      <div
+        className={`${s.card} relative rounded-xl border-2 flex flex-col items-center justify-center pt-1 pb-1.5 px-0.5 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5`}
+        style={{
+          borderColor: el.color,
+          background: el.bg,
+          boxShadow: isHighlighted ? `0 0 0 3px ${el.color}55, 0 0 16px ${el.color}44` : undefined,
+          transform: isHighlighted ? "scale(1.08) translateY(-2px)" : undefined,
         }}
-      />
-      {/* 10MS Top Navigation Bar */}
-      <nav className="h-16 shrink-0 border-b border-[#E5E7EB] px-4 md:px-6 flex items-center justify-between bg-white z-50 shadow-sm">
-        <div className="flex items-center gap-2 md:gap-3 overflow-hidden">
-          <div className="w-8 h-8 md:w-10 md:h-10 bg-[#E8001D] rounded-lg flex items-center justify-center text-white font-black text-lg italic shrink-0">
-            10
-          </div>
-          <div className="truncate">
-            <h1 className="text-sm md:text-lg font-bold leading-none text-[#111827] truncate">
-              Stoichiometry Lab • রাসায়নিক সমতাকরণ
-            </h1>
-          </div>
-        </div>
+        onMouseEnter={onSelect}
+        onMouseLeave={onDeselect}
+      >
+        <span className={`absolute top-0.5 left-1 ${s.num} font-bold opacity-60`} style={{ color: el.color }}>{el.number}</span>
+        {count !== undefined && (
+          <span className={`absolute top-0.5 right-1 ${s.num} font-black`} style={{ color: el.color }}>×{count}</span>
+        )}
+        <span className={`${s.sym} font-black leading-none mt-2`} style={{ color: el.color }}>{symbol}</span>
+        <span className={`${s.name} font-semibold text-center leading-tight mt-0.5 opacity-70`} style={{ color: el.color }}>{el.nameBn}</span>
+        <span className={`${s.mass} font-medium opacity-50 mt-0.5`} style={{ color: el.color }}>{el.mass.toFixed(el.mass < 10 ? 3 : 2)}</span>
+      </div>
+    </Tooltip>
+  );
+};
 
-        <div className="hidden md:flex items-center gap-4 bg-gray-50 border border-[#E5E7EB] rounded-xl px-0 w-[320px] ml-0">
-          <button
-            onClick={() => setIsSearchOpen(true)}
-            className="tour-step-reaction w-[319px] py-2 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-2 bg-white border border-[#E5E7EB] text-[#111827] hover:bg-gray-50 shadow-sm"
-          >
-            <Search size={14} />
-            বিক্রিয়া নির্বাচন (Select Reaction)
-          </button>
-        </div>
-
-        <div className="flex items-center gap-2 md:gap-4 ml-2">
-          <button
-            onClick={() => setIsSearchOpen(true)}
-            className="md:hidden p-2 text-gray-500 hover:text-[#E8001D] transition-colors"
-          >
-            <Search size={20} />
-          </button>
-          <button
-            onClick={() => setRunTutorial(true)}
-            className="hidden md:flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-bold text-white bg-[#E8001D] rounded-full hover:bg-[#c10018] shadow-sm transition-all whitespace-nowrap"
-          >
-            <Info size={14} className="md:w-4 md:h-4" />
-            Tutorial
-          </button>
-          <button
-            onClick={handleReset}
-            className="flex items-center gap-2 px-3 md:px-4 py-1.5 md:py-2 text-xs md:text-sm font-bold text-[#E8001D] border border-[#E5E7EB] rounded-full hover:border-[#E8001D] transition-all whitespace-nowrap"
-          >
-            <RefreshCw size={14} className="md:w-4 md:h-4" />
-            রিসেট (Reset)
-          </button>
-        </div>
-      </nav>
-
-      <main className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* VIEWPORT AREA */}
-        <section className="flex-[2.5] bg-[#020617] relative border-b lg:border-r border-white/5 flex flex-col overflow-hidden min-h-[300px] md:min-h-[400px]">
-          {/* Lab Grid Background - Pattern of dots */}
-          <div
-            className="absolute inset-0 pointer-events-none opacity-20"
-            style={{
-              backgroundImage:
-                "radial-gradient(circle, #475569 1px, transparent 1px)",
-              backgroundSize: "32px 32px",
-            }}
-          />
-
-          {/* Top Left View Selection Dropdown */}
-          <div className="absolute top-4 left-4 md:top-6 md:left-6 z-50">
-            <div className="relative">
-              <select
-                value={view}
-                onChange={(e) => setView(e.target.value as any)}
-                className="tour-step-views bg-[#0f172a]/90 backdrop-blur-2xl border border-white/10 text-[#f11010] w-[431px] max-w-[90vw] rounded-[16px] md:rounded-[20px] px-4 py-2.5 md:px-6 md:py-3 text-xs md:text-sm font-black uppercase tracking-widest focus:outline-none focus:border-[#E8001D] appearance-none cursor-pointer shadow-2xl hover:bg-white/10 transition-colors pr-10"
-              >
-                <option value="molecules">Molecules</option>
-                <option value="balance">Scale</option>
-                <option value="stoichiometry">Calculations</option>
-                <option value="ratios">Mole Ratios</option>
-              </select>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-white/50">
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="3"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <polyline points="6 9 12 15 18 9"></polyline>
-                </svg>
-              </div>
+// ─────────────────────────────────────────────────────────────────────────────
+// Atom Tracker
+// ─────────────────────────────────────────────────────────────────────────────
+const AtomTracker = ({ atomCounts }: { atomCounts: { left: Record<string, number>; right: Record<string, number> } }) => {
+  const elements = useMemo(
+    () => Array.from(new Set([...Object.keys(atomCounts.left), ...Object.keys(atomCounts.right)])),
+    [atomCounts]
+  );
+  const maxCount = useMemo(
+    () => Math.max(1, ...elements.map((e) => Math.max(atomCounts.left[e] || 0, atomCounts.right[e] || 0))),
+    [atomCounts, elements]
+  );
+  return (
+    <div className="space-y-2">
+      {elements.map((e) => {
+        const L = atomCounts.left[e] || 0;
+        const R = atomCounts.right[e] || 0;
+        const ok = L === R;
+        const el = getEl(e);
+        return (
+          <Tooltip key={e} side="bottom" content={
+            <div>
+              <p className="font-bold" style={{ color: el.color }}>{el.nameBn} ({e})</p>
+              <p>বাম (Reactants): <strong>{L}</strong></p>
+              <p>ডান (Products): <strong>{R}</strong></p>
+              <p className={ok ? "text-[#15803D] font-bold" : "text-[#DC2626] font-bold"}>
+                {ok ? "✓ সমতা আছে" : `${Math.abs(L - R)} টি ফারাক`}
+              </p>
             </div>
-          </div>
-
-          {/* Molecule Info Overlay */}
-          <div className="absolute top-20 left-4 md:top-24 md:left-6 z-10 w-[calc(100%-32px)] md:w-auto pointer-events-none">
-            <motion.div
-              key={currentReaction.id}
-              initial={{ y: -20, opacity: 0 }}
-              animate={{ y: 0, opacity: 1 }}
-              className="bg-[#0f172a]/80 backdrop-blur-xl border border-white/10 p-4 md:p-5 rounded-[20px] md:rounded-[24px] shadow-2xl pointer-events-auto"
-            >
-              <div className="flex items-center gap-2 mb-2">
-                <div className="flex items-center gap-2 flex-1">
-                  <div className="w-1.5 h-1.5 md:w-2 md:h-2 rounded-full bg-[#10b981] shadow-[0_0_10px_#10b981]" />
-                  <span className="text-white/60 text-[8px] md:text-[10px] font-black uppercase tracking-widest">
-                    Active Reaction
-                  </span>
-                </div>
-                <button
-                  onClick={() => setShowSummary(true)}
-                  className="bg-white/10 hover:bg-white/20 text-white active:scale-95 transition-all text-[8px] md:text-[10px] font-black uppercase tracking-widest px-2 py-1 flex items-center gap-1 rounded"
-                >
-                  <Info size={12} />
-                  Summary
-                </button>
+          }>
+            <div className={`rounded-xl p-2.5 border transition-all ${ok ? "bg-[#F0FDF4] border-[#86EFAC]" : "bg-[#FFF8F8] border-[#FECACA]"}`}>
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-6 h-6 rounded-md flex items-center justify-center text-white text-[9px] font-black shrink-0"
+                  style={{ background: el.color }}>{e}</div>
+                <span className="text-[9px] font-bold flex-1" style={{ color: el.color }}>{el.nameBn}</span>
+                <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full ${ok ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#FEE2E2] text-[#B91C1C]"}`}>
+                  {ok ? "✓" : `${L}≠${R}`}
+                </span>
               </div>
-              <h3 className="text-white text-base md:text-xl font-black tracking-tight mb-1 truncate max-w-[280px] md:max-w-none">
-                {currentReaction.name}
-              </h3>
-              <p className="text-[#94a3b8] text-xs md:text-sm font-semibold font-['Inter']">
-                {currentReaction.formula}
-              </p>
-            </motion.div>
-          </div>
-
-          <div className="flex-1 relative flex flex-col">
-            {view === "molecules" && (
-              <div className="h-full flex flex-col items-center justify-center relative pb-24 md:pb-0">
-                {/* 10MS Top Right Panel Style */}
-                <div className="absolute top-32 md:top-6 right-4 md:right-6 z-10 flex flex-col gap-3 max-w-[calc(100%-32px)] md:max-w-[200px]">
-                  <div className="bg-[#0f172a]/80 backdrop-blur-xl border border-white/10 w-[214px] h-[243px] pl-3 pt-[14px] pb-5 pr-[14px] ml-0.5 -mt-5 rounded-[20px] md:rounded-[24px] shadow-2xl">
-                    <div className="flex flex-col gap-3 md:gap-4">
-                      <div>
-                        <label className="text-white/40 text-[8px] md:text-[10px] font-black uppercase tracking-widest block mb-1 md:mb-2">
-                          Molecule
-                        </label>
-                        <select
-                          value={selectedMolecule || ""}
-                          onChange={(e) => setSelectedMolecule(e.target.value)}
-                          className="w-full bg-white/5 border border-white/10 text-white rounded-lg md:rounded-xl px-3 py-1.5 md:px-4 md:py-2 text-xs md:text-sm font-bold focus:outline-none focus:border-[#E8001D] appearance-none cursor-pointer"
-                        >
-                          <option value="" disabled className="bg-[#0f172a]">
-                            Select Molecule
-                          </option>
-                          {[
-                            ...currentReaction.reactants,
-                            ...currentReaction.products,
-                          ].map((m) => (
-                            <option
-                              key={m.id}
-                              value={m.id}
-                              className="bg-[#0f172a]"
-                            >
-                              {m.id} ({m.name})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-
-                      <div className="space-y-3 md:space-y-4 pt-3 md:pt-4 border-t border-white/5 w-[188px] h-[146px] pl-[3px] ml-0">
-                        <label className="text-white/40 text-[8px] md:text-[10px] font-black uppercase tracking-widest block font-['Inter']">
-                          Options
-                        </label>
-                        <button
-                          onClick={() => setShowBonds(!showBonds)}
-                          className="w-[180px] py-2 md:py-3 bg-white/5 text-white text-[9px] md:text-[11px] font-black uppercase tracking-widest rounded-lg md:rounded-xl hover:bg-white/10 transition-all flex items-center justify-between px-3 md:px-4"
-                        >
-                          <span className="font-['Inter']">Show Bonds</span>
-                          <div
-                            className={`w-3.5 h-3.5 md:w-4 md:h-4 rounded border-2 flex items-center justify-center transition-all ${showBonds ? "bg-[#E8001D] border-[#E8001D]" : "border-white/20"}`}
-                          >
-                            {showBonds && (
-                              <Plus size={10} className="text-white" />
-                            )}
-                          </div>
-                        </button>
-
-                        <div className="space-y-1.5 md:space-y-2">
-                          <div className="flex justify-between text-white/40 text-[8px] md:text-[9px] font-black uppercase tracking-widest font-['Inter']">
-                            <span>Bond Length</span>
-                            <span className="text-white">
-                              {bondLength.toFixed(1)}
-                            </span>
-                          </div>
-                          <input
-                            type="range"
-                            min="0.5"
-                            max="2"
-                            step="0.1"
-                            value={bondLength}
-                            onChange={(e) =>
-                              setBondLength(parseFloat(e.target.value))
-                            }
-                            className="w-full accent-[#E8001D]"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <Canvas shadows dpr={[1, 2]}>
-                  <PerspectiveCamera
-                    makeDefault
-                    position={[0, 0, 8]}
-                    fov={45}
-                  />
-                  <Suspense fallback={null}>
-                    <Stage environment="city" intensity={0.6}>
-                      <Float
-                        speed={2}
-                        rotationIntensity={0.5}
-                        floatIntensity={0.5}
-                      >
-                        {selectedMolecule ? (
-                          <group scale={1.2}>
-                            {/* Render detailed molecule based on ID */}
-                            {selectedMolecule === "H2O" && (
-                              <H2OMolecule
-                                position={[0, 0, 0]}
-                                showBonds={showBonds}
-                                bondLength={bondLength}
-                              />
-                            )}
-                            {selectedMolecule === "CO2" && (
-                              <CO2Molecule position={[0, 0, 0]} />
-                            )}
-                            {selectedMolecule === "CH4" && (
-                              <CH4Molecule position={[0, 0, 0]} />
-                            )}
-                            {selectedMolecule === "NH3" && (
-                              <NH3Molecule position={[0, 0, 0]} />
-                            )}
-                            {selectedMolecule === "O2" && (
-                              <O2Molecule
-                                position={[0, 0, 0]}
-                                showBonds={showBonds}
-                                bondLength={bondLength}
-                              />
-                            )}
-                            {selectedMolecule === "N2" && (
-                              <N2Molecule position={[0, 0, 0]} />
-                            )}
-                            {selectedMolecule === "H2" && (
-                              <H2Molecule
-                                position={[0, 0, 0]}
-                                showBonds={showBonds}
-                                bondLength={bondLength}
-                              />
-                            )}
-                            {selectedMolecule === "HCl" && (
-                              <HClMolecule position={[0, 0, 0]} />
-                            )}
-                            {selectedMolecule === "Cl2" && (
-                              <Cl2Molecule position={[0, 0, 0]} />
-                            )}
-                            {![
-                              "H2O",
-                              "CO2",
-                              "CH4",
-                              "NH3",
-                              "O2",
-                              "N2",
-                              "H2",
-                              "HCl",
-                              "Cl2",
-                            ].includes(selectedMolecule) && (
-                              <MolecularCluster
-                                atoms={
-                                  [
-                                    ...currentReaction.reactants,
-                                    ...currentReaction.products,
-                                  ].find((m) => m.id === selectedMolecule)
-                                    ?.atoms || {}
-                                }
-                                position={[0, 0, 0]}
-                              />
-                            )}
-                          </group>
-                        ) : (
-                          <group>
-                            <Text
-                              color="white"
-                              fontSize={0.25}
-                              font="https://fonts.gstatic.com/s/hindsiliguri/v12/ijwb8z7C9ZNoYk2090uG3C7S6Z6_.woff"
-                            >
-                              ডানপাশের প্যানেল থেকে একটি অণু নির্বাচন করো
-                            </Text>
-                            <Text
-                              color="white/40"
-                              position={[0, -0.4, 0]}
-                              fontSize={0.15}
-                              font="https://fonts.gstatic.com/s/inter/v12/UcCO3FwrK3iLTeHuS_fvQtMwCp50KnMw2boKoduKmMEVuGkyMZhrib2Bg-4.woff"
-                            >
-                              (Select a molecule from the right panel to view)
-                            </Text>
-                          </group>
-                        )}
-                      </Float>
-                    </Stage>
-                  </Suspense>
-                  <OrbitControls enableZoom={true} />
-                </Canvas>
-              </div>
-            )}
-
-            {view === "balance" && (
-              <div className="h-full flex flex-col items-center justify-center p-4 md:p-12 pt-32 md:pt-36 pb-24 md:pb-12 gap-6 md:gap-12 overflow-y-auto no-scrollbar">
-                <h3 className="text-white/40 text-[10px] md:text-sm font-bold uppercase tracking-widest font-['Inter']">
-                  Balance Verification
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-x-12 md:gap-y-8 w-full max-w-2xl px-4">
-                  {allElements.map((e) => {
-                    const isBalanced =
-                      atomCounts.left[e] === atomCounts.right[e];
-                    return (
-                      <motion.div
-                        key={e}
-                        animate={{ scale: isBalanced ? 1 : 1.05 }}
-                        className={`w-full ${isBalanced ? "opacity-100" : "opacity-80"}`}
-                      >
-                        <BalanceSeesaw
-                          element={e}
-                          countLeft={atomCounts.left[e] || 0}
-                          countRight={atomCounts.right[e] || 0}
-                        />
-                        {!isBalanced && (
-                          <div className="text-[10px] text-center mt-2 text-[#E8001D] font-bold uppercase tracking-widest font-['Inter']">
-                            Unbalanced • অসমতাকৃত
-                          </div>
-                        )}
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-
-            {view === "stoichiometry" && (
-              <div className="h-full flex flex-col items-center justify-start p-4 md:p-8 pt-32 md:pt-36 overflow-y-auto w-full max-w-4xl mx-auto space-y-6 md:space-y-8 pb-24 no-scrollbar">
-                {/* Table Part */}
-                <div className="w-[calc(100%+63px)] -ml-[36px] -mr-[27px] bg-white rounded-2xl md:rounded-3xl border border-[#E5E7EB] shadow-sm overflow-hidden flex flex-col mt-[100px] p-0">
-                  <div className="h-[48.6px] pl-[24px] pr-4 md:pr-6 border-b border-[#E5E7EB] bg-gray-50 flex items-center gap-3">
-                    <FlaskConical className="text-[#E8001D]" size={20} />
-                    <h3 className="text-sm font-bold text-gray-800 uppercase tracking-wider font-['Inter']">
-                      Molar Quantities Table
-                    </h3>
-                  </div>
-                  <div className="overflow-x-auto no-scrollbar">
-                    <table className="w-full text-left min-w-[600px] md:min-w-0">
-                      <thead className="bg-[#111827] text-white text-[9px] md:text-[10px] uppercase font-bold tracking-widest font-['Inter']">
-                        <tr>
-                          <th className="px-6 py-4">
-                            <Tooltip
-                              title="Compounds (যৌগ)"
-                              text="বিক্রিয়ায় অংশ নেওয়া বা উৎপন্ন প্রতিটি মৌলিক বা যৌগিক পদার্থ।"
-                              visual={
-                                <div className="flex gap-2 justify-center">
-                                  <FlaskConical
-                                    size={16}
-                                    className="text-red-400"
-                                  />
-                                  <FlaskConical
-                                    size={16}
-                                    className="text-blue-400"
-                                  />
-                                </div>
-                              }
-                            >
-                              <div className="flex items-center gap-2">
-                                <FlaskConical
-                                  size={14}
-                                  className="text-[#E8001D]"
-                                />
-                                যৌগ (Compound)
-                              </div>
-                            </Tooltip>
-                          </th>
-                          <th className="px-6 py-4">
-                            <Tooltip
-                              title="Coefficient (সহগ)"
-                              text="সমতাকৃত সমীকরণের অণুর সংখ্যা। এটি বিক্রিয়ায় কত মোল অংশ নিয়েছে তা নির্দেশ করে।"
-                              visual={
-                                <div className="text-xs font-bold font-mono bg-gray-900 rounded px-2 py-1">
-                                  <span className="text-green-400">2</span> H₂O
-                                </div>
-                              }
-                            >
-                              <div className="flex items-center gap-2 w-[72px]">
-                                <Edit3 size={14} className="text-[#1CAB55]" />
-                                সহগ (Coeff)
-                              </div>
-                            </Tooltip>
-                          </th>
-                          <th className="px-6 py-4">
-                            <Tooltip
-                              title="Molar Mass (মোলার ভর)"
-                              text="কোনো পদার্থের ১ মোলের ভর গ্রাম এককে। পর্যায় সারণি থেকে মৌলের পারমাণবিক ভর যোগ করে এটি নির্ণয় করা হয়।"
-                              visual={
-                                <div className="text-xs font-mono">
-                                  H₂O = (1×2) + 16 ={" "}
-                                  <span className="text-blue-400">
-                                    18 g/mol
-                                  </span>
-                                </div>
-                              }
-                            >
-                              <div className="flex items-center gap-2 w-[70px]">
-                                <Atom size={14} className="text-blue-500" />
-                                মোলার ভর (M)
-                              </div>
-                            </Tooltip>
-                          </th>
-                          <th className="px-6 py-4">
-                            <Tooltip
-                              title="Mole (মোল)"
-                              text="পদার্থের পরিমাণের একক। ১ মোল = 6.023×10²³ টি অণু বা পরমাণু।"
-                              visual={
-                                <div className="flex flex-col items-center gap-1">
-                                  <Search
-                                    size={16}
-                                    className="text-purple-400"
-                                  />
-                                  <span className="text-[9px]">n = w / M</span>
-                                </div>
-                              }
-                            >
-                              <div className="flex items-center gap-2 w-[82px]">
-                                <Search size={14} className="text-purple-500" />
-                                মোল (n)
-                              </div>
-                            </Tooltip>
-                          </th>
-                          <th className="px-6 py-4">
-                            <Tooltip
-                              title="Total Mass (মোট ভর)"
-                              text="বিক্রিয়ায় ওই পদার্থের মোট ভর। সূত্র: n × M"
-                              visual={
-                                <div className="text-xs font-mono">
-                                  2 মোল × 18 ={" "}
-                                  <span className="text-orange-400">36 g</span>
-                                </div>
-                              }
-                            >
-                              <div className="flex items-center gap-2 w-[94px]">
-                                <HelpCircle
-                                  size={14}
-                                  className="text-orange-500"
-                                />
-                                ভর (Weight g)
-                              </div>
-                            </Tooltip>
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-[#E5E7EB]">
-                        <tr className="bg-orange-50/50">
-                          <td
-                            colSpan={5}
-                            className="px-6 py-2 text-[10px] font-black text-orange-600 uppercase tracking-tighter"
-                          >
-                            Reactants • বিক্রিয়ক
-                          </td>
-                        </tr>
-                        {currentReaction.reactants.map((r) => {
-                          const coeff = coeffs[r.id] || 1;
-                          return (
-                            <tr key={r.id} className="text-sm">
-                              <td className="px-6 py-4 font-bold font-['Inter']">
-                                {r.id}
-                              </td>
-                              <td className="px-6 py-4 font-['Inter']">
-                                {coeff}
-                              </td>
-                              <td className="px-6 py-4 text-gray-500 font-['Inter']">
-                                {r.molarMass.toFixed(3)}
-                              </td>
-                              <td className="px-6 py-4">
-                                <input
-                                  readOnly
-                                  value={coeff.toFixed(2)}
-                                  className="bg-gray-50 border border-[#E5E7EB] rounded-lg px-3 py-1 w-20 text-center font-['Inter'] text-gray-700"
-                                />
-                              </td>
-                              <td className="px-6 py-4">
-                                <input
-                                  readOnly
-                                  value={(coeff * r.molarMass).toFixed(2)}
-                                  className="bg-gray-50 border border-[#E5E7EB] rounded-lg px-3 py-1 w-24 text-center font-['Inter'] text-gray-700 font-bold"
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                        <tr className="bg-blue-50/50">
-                          <td
-                            colSpan={5}
-                            className="px-6 py-2 text-[10px] font-black text-blue-600 uppercase tracking-tighter"
-                          >
-                            Products • উৎপাদ
-                          </td>
-                        </tr>
-                        {currentReaction.products.map((p) => {
-                          const coeff = coeffs[p.id] || 1;
-                          return (
-                            <tr key={p.id} className="text-sm">
-                              <td className="px-6 py-4 font-bold font-['Inter']">
-                                {p.id}
-                              </td>
-                              <td className="px-6 py-4 font-['Inter']">
-                                {coeff}
-                              </td>
-                              <td className="px-6 py-4 text-gray-500 font-['Inter']">
-                                {p.molarMass.toFixed(3)}
-                              </td>
-                              <td className="px-6 py-4">
-                                <input
-                                  readOnly
-                                  value={coeff.toFixed(2)}
-                                  className="bg-gray-50 border border-[#E5E7EB] rounded-lg px-3 py-1 w-20 text-center font-['Inter'] text-gray-700"
-                                />
-                              </td>
-                              <td className="px-6 py-4">
-                                <input
-                                  readOnly
-                                  value={(coeff * p.molarMass).toFixed(2)}
-                                  className="bg-gray-50 border border-[#E5E7EB] rounded-lg px-3 py-1 w-24 text-center font-['Inter'] text-gray-700 font-bold"
-                                />
-                              </td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {view === "ratios" && (
-              <div className="h-full flex flex-col items-center justify-start p-4 md:p-8 pt-32 md:pt-36 overflow-y-auto w-full max-w-4xl mx-auto space-y-6 md:space-y-8 pb-24 no-scrollbar border-none">
-                {/* Mole Ratios Section - Third Segment */}
-                <div className="w-full bg-[#111827] text-white rounded-2xl md:rounded-3xl shadow-xl overflow-hidden relative mt-[90px]">
-                  <div className="absolute top-0 right-0 w-64 h-64 bg-[#E8001D] opacity-10 blur-[100px] pointer-events-none" />
-
-                  <div className="pl-6 pb-[15px] pr-[15px] h-[55.6px] ml-0 mt-0 flex items-center border-b border-gray-800">
-                    <h4 className="text-xs md:text-sm font-black uppercase tracking-[0.2em] text-[#E8001D] flex items-center gap-2 font-['Inter'] h-[35px] -mt-2 mr-[50px]">
-                      <Edit3 size={16} />
-                      Mole Ratios • মোল অনুপাত
-                    </h4>
-                  </div>
-
-                  <div className="p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mt-0 h-[300px]">
-                    <div className="flex flex-col gap-4">
-                      <p className="text-gray-400 text-[10px] md:text-xs leading-relaxed font-medium">
-                        বিক্রিয়ক এবং উৎপাদের মধ্যে মোলের অনুপাত। এটি ব্যবহার করে
-                        আমরা অজান যৌগের উৎপন্ন পরিমাণ নির্ণয় করতে পারি।
-                      </p>
-
-                      <div className="p-5 md:p-6 bg-white/5 rounded-2xl border border-white/10 backdrop-blur-sm shadow-inner flex flex-col items-center justify-center h-full">
-                        <span className="text-[8px] md:text-[10px] font-black text-gray-400 uppercase block mb-2 font-['Inter']">
-                          Core Reaction Ratio
-                        </span>
-                        <div className="flex flex-wrap items-baseline justify-center gap-3">
-                          {currentReaction.reactants.map((r) => (
-                            <div key={r.id} className="flex gap-2 items-center">
-                              <span className="text-xl md:text-2xl font-black text-white font-['Inter']">
-                                {coeffs[r.id] || 0}
-                              </span>
-                              <span className="text-xs text-gray-400">
-                                {r.id}
-                              </span>
-                            </div>
-                          ))}
-                          <ArrowRight className="text-white/40" size={16} />
-                          {currentReaction.products.map((p) => (
-                            <div key={p.id} className="flex gap-2 items-center">
-                              <span className="text-xl md:text-2xl font-black text-[#10b981] font-['Inter']">
-                                {coeffs[p.id] || 0}
-                              </span>
-                              <span className="text-xs text-[#10b981]/80">
-                                {p.id}
-                              </span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
-                      {currentReaction.reactants.length > 1 && (
-                        <div className="text-[8px] font-black text-white/40 uppercase mb-2 font-['Inter']">
-                          Reactant : Reactant
-                        </div>
-                      )}
-                      {currentReaction.reactants.map((r, idx) => {
-                        if (idx === currentReaction.reactants.length - 1)
-                          return null;
-                        const nextR = currentReaction.reactants[idx + 1];
-                        const ratioValue = coeffs[r.id] / coeffs[nextR.id];
-                        const ratio = isFinite(ratioValue)
-                          ? ratioValue.toFixed(2)
-                          : "0.00";
-                        return (
-                          <div
-                            key={`rr-${r.id}-${nextR.id}`}
-                            className="flex items-center justify-between p-3 md:p-4 bg-white/5 rounded-xl border border-white/10"
-                          >
-                            <span className="font-bold text-xs md:text-sm font-['Inter']">
-                              {r.id} : {nextR.id}
-                            </span>
-                            <span className="text-[#1CAB55] font-black text-xs md:text-sm font-['Inter']">
-                              {coeffs[r.id]} : {coeffs[nextR.id]} ({ratio})
-                            </span>
-                          </div>
-                        );
-                      })}
-
-                      <div className="text-[8px] font-black text-white/40 uppercase mt-4 mb-2 font-['Inter']">
-                        Reactant : Product
-                      </div>
-                      {currentReaction.reactants.map((r) =>
-                        currentReaction.products.map((p) => {
-                          const ratioValue = coeffs[r.id] / coeffs[p.id];
-                          const ratio = isFinite(ratioValue)
-                            ? ratioValue.toFixed(ratioValue < 100 ? 2 : 0)
-                            : "0.00";
-                          return (
-                            <div
-                              key={`rp-${r.id}-${p.id}`}
-                              className="flex items-center justify-between p-3 md:p-4 bg-white/5 rounded-xl border border-white/10"
-                            >
-                              <span className="font-bold text-xs md:text-sm font-['Inter']">
-                                {r.id} : {p.id}
-                              </span>
-                              <span className="text-[#10b981] font-black text-xs md:text-sm font-['Inter']">
-                                {coeffs[r.id] || 0} : {coeffs[p.id] || 0} (
-                                {ratio})
-                              </span>
-                            </div>
-                          );
-                        }),
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* CONTROLS AREA - Fixed sequence and mobile layout */}
-        <section className="flex-[1.8] bg-white flex flex-col border-t lg:border-t-0 lg:border-l border-[#E5E7EB] overflow-y-auto no-scrollbar">
-          <div className="p-4 md:p-8 flex-1">
-            <header className="mb-6 md:mb-8">
-              <div className="inline-flex items-center gap-2 px-3 py-1 bg-[#1CAB55]/10 text-[#1CAB55] rounded-full text-[10px] md:text-xs font-bold mb-3 uppercase tracking-widest font-['Inter']">
-                Learning Mode
-              </div>
-              <h2 className="text-xl md:text-2xl font-bold text-[#111827] mb-2 leading-tight">
-                তুমি কি এই সমীকরণটি মেলাতে পারবে?
-              </h2>
-              <p className="text-gray-500 text-xs md:text-sm leading-relaxed">
-                ভরের সংরক্ষণশীলতা নীতি বজায় রাখার জন্য বিক্রিয়ক (Reactant) এবং
-                উৎপাদ (Product) উভয় পাশের পরমাণুর সংখ্যা সমান হওয়া প্রয়োজন।
-              </p>
-            </header>
-
-            {/* Balancer UI - Layout adjustment for proper visibility */}
-            <div className="space-y-6 md:space-y-10">
-              <div className="tour-step-balancer p-6 md:p-8 border-t border-b lg:border border-[#E5E7EB] lg:rounded-3xl relative bg-gray-50/30">
-                <div className="flex flex-col items-center gap-6 md:gap-10 p-4 border-[0.5px] border-solid border-[#E5E7EB] rounded-[20px]">
-                  {/* Reactants Row - Stacked as per image if many */}
-                  <div className="flex flex-wrap items-center gap-4 md:gap-6 justify-center w-full">
-                    {currentReaction.reactants.map((r, i) => (
-                      <React.Fragment key={r.id}>
-                        <CoefficientControl
-                          label={r.id}
-                          value={coeffs[r.id] || 1}
-                          onChange={(v) => updateCoeff(r.id, v)}
-                        />
-                        {i < currentReaction.reactants.length - 1 && (
-                          <Plus size={18} className="text-gray-300" />
-                        )}
-                      </React.Fragment>
-                    ))}
-                  </div>
-
-                  {/* Arrow Separator */}
-                  <div className="flex flex-col items-center gap-0">
-                    <div className="w-9 h-9 md:w-10 md:h-10 rounded-full border-2 border-[#E8001D] flex items-center justify-center text-[#E8001D] shadow-lg shadow-red-500/10 shrink-0">
-                      <ChevronRight
-                        size={20}
-                        className="md:w-6 md:h-6 rotate-90 lg:rotate-0"
+              <div className="space-y-1">
+                {[["বাম", L, el.color], ["ডান", R, ok ? "#16A34A" : "#EF4444"]].map(([label, val, clr]) => (
+                  <div key={label as string} className="flex items-center gap-1.5">
+                    <span className="text-[7px] font-bold text-[var(--gray-400)] w-8 shrink-0 text-right">{label} ({val})</span>
+                    <div className="flex-1 h-3 bg-[var(--gray-100)] rounded-full overflow-hidden">
+                      <motion.div className="h-full rounded-full"
+                        style={{ background: clr as string }}
+                        animate={{ width: `${((val as number) / maxCount) * 100}%` }}
+                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
                       />
                     </div>
                   </div>
+                ))}
+              </div>
+            </div>
+          </Tooltip>
+        );
+      })}
+    </div>
+  );
+};
 
-                  {/* Products Row - Stacked as per image if many */}
-                  <div className="flex flex-wrap items-center gap-4 md:gap-6 justify-center w-full">
-                    {currentReaction.products.map((p, i) => (
-                      <React.Fragment key={p.id}>
-                        <CoefficientControl
-                          label={p.id}
-                          value={coeffs[p.id] || 1}
-                          onChange={(v) => updateCoeff(p.id, v)}
-                        />
-                        {i < currentReaction.products.length - 1 && (
-                          <Plus size={18} className="text-gray-300" />
-                        )}
-                      </React.Fragment>
+// ─────────────────────────────────────────────────────────────────────────────
+// Balancer Table
+// ─────────────────────────────────────────────────────────────────────────────
+const BalancerTable = ({
+  reaction, coeffs, atomCounts, showMolarMass, onToggleMolarMass,
+}: {
+  reaction: typeof REACTIONS[0];
+  coeffs: Record<string, number>;
+  atomCounts: { left: Record<string, number>; right: Record<string, number> };
+  showMolarMass: boolean;
+  onToggleMolarMass: () => void;
+}) => {
+  const elements = useMemo(() =>
+    Array.from(new Set([
+      ...reaction.reactants.flatMap((r) => Object.keys(r.atoms)),
+      ...reaction.products.flatMap((p) => Object.keys(p.atoms)),
+    ])),
+    [reaction]
+  );
+  const allMols = [...reaction.reactants, ...reaction.products];
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-2">
+        <span className="text-[8px] font-bold uppercase tracking-widest text-[var(--gray-400)] flex items-center gap-1">
+          <TableProperties size={10} /> ব্যালান্সার টেবিল
+        </span>
+        <button onClick={onToggleMolarMass}
+          className="text-[8px] font-bold text-[var(--gray-400)] hover:text-[var(--ten-red)] flex items-center gap-0.5 transition-all"
+        >
+          {showMolarMass ? "ভর লুকাও" : "ভর দেখাও"}
+        </button>
+      </div>
+      <div className="overflow-x-auto no-scrollbar rounded-xl border border-[var(--border)]">
+        <table className="balancer-table w-full text-left">
+          <thead>
+            <tr className="bg-[var(--gray-50)]">
+              <th className="text-left text-[var(--gray-500)] px-3 py-2 rounded-tl-xl bn">অণু</th>
+              <th className="text-center text-[var(--gray-500)] bn">সহগ</th>
+              {elements.map((e) => {
+                const el = getEl(e);
+                return (
+                  <th key={e} className="text-center"
+                    style={{ background: el.bg, color: el.color }}>
+                    {e}
+                  </th>
+                );
+              })}
+              {showMolarMass && <th className="text-center text-[var(--gray-500)] bn">আ.ভর</th>}
+              <th className="text-center text-[var(--gray-500)] bn rounded-tr-xl">মোট ভর</th>
+            </tr>
+          </thead>
+          <tbody>
+            {/* Reactants header */}
+            <tr className="bg-[#EFF6FF]">
+              <td colSpan={3 + elements.length + (showMolarMass ? 1 : 0)}
+                className="px-3 py-1 text-[8px] font-bold uppercase tracking-widest text-[#1D4ED8]"
+              >
+                বিক্রিয়ক — Reactants
+              </td>
+            </tr>
+            {reaction.reactants.map((m) => {
+              const c = coeffs[m.id] || 1;
+              return (
+                <tr key={m.id} className="hover:bg-[var(--gray-50)] transition-colors">
+                  <td className="px-3 py-2 font-mono font-bold text-[var(--ten-ink)] text-left">{m.id}</td>
+                  <td className="font-black text-[var(--ten-red)]">{c}</td>
+                  {elements.map((e) => {
+                    const cnt = (m.atoms[e] || 0) * c;
+                    const el = getEl(e);
+                    return (
+                      <td key={e} style={{ color: cnt > 0 ? el.color : undefined }}
+                        className={cnt > 0 ? "font-bold" : "text-[var(--gray-300)]"}>
+                        {cnt > 0 ? cnt : "—"}
+                      </td>
+                    );
+                  })}
+                  {showMolarMass && <td className="text-[var(--gray-500)]">{m.molarMass.toFixed(2)}</td>}
+                  <td className="font-bold text-[var(--ten-red)]">{(m.molarMass * c).toFixed(2)}</td>
+                </tr>
+              );
+            })}
+            {/* Reactant totals */}
+            <tr className="bg-[#EFF6FF] border-t-2 border-[#BFDBFE]">
+              <td className="px-3 py-1.5 text-[8px] font-bold uppercase text-[#1D4ED8] bn" colSpan={2}>বিক্রিয়ক মোট</td>
+              {elements.map((e) => {
+                const tot = atomCounts.left[e] || 0;
+                const ok  = tot === (atomCounts.right[e] || 0);
+                return (
+                  <td key={e} className={`font-black ${ok ? "text-[#15803D]" : "text-[#DC2626]"}`}>{tot}</td>
+                );
+              })}
+              {showMolarMass && <td />}
+              <td />
+            </tr>
+
+            {/* Products header */}
+            <tr className="bg-[#F0FDF4]">
+              <td colSpan={3 + elements.length + (showMolarMass ? 1 : 0)}
+                className="px-3 py-1 text-[8px] font-bold uppercase tracking-widest text-[#166534]"
+              >
+                উৎপাদ — Products
+              </td>
+            </tr>
+            {reaction.products.map((m) => {
+              const c = coeffs[m.id] || 1;
+              return (
+                <tr key={m.id} className="hover:bg-[var(--gray-50)] transition-colors">
+                  <td className="px-3 py-2 font-mono font-bold text-[var(--ten-ink)] text-left">{m.id}</td>
+                  <td className="font-black text-[var(--ten-red)]">{c}</td>
+                  {elements.map((e) => {
+                    const cnt = (m.atoms[e] || 0) * c;
+                    const el = getEl(e);
+                    return (
+                      <td key={e} style={{ color: cnt > 0 ? el.color : undefined }}
+                        className={cnt > 0 ? "font-bold" : "text-[var(--gray-300)]"}>
+                        {cnt > 0 ? cnt : "—"}
+                      </td>
+                    );
+                  })}
+                  {showMolarMass && <td className="text-[var(--gray-500)]">{m.molarMass.toFixed(2)}</td>}
+                  <td className="font-bold text-[#16A34A]">{(m.molarMass * c).toFixed(2)}</td>
+                </tr>
+              );
+            })}
+            {/* Product totals */}
+            <tr className="bg-[#F0FDF4] border-t-2 border-[#86EFAC]">
+              <td className="px-3 py-1.5 text-[8px] font-bold uppercase text-[#166534] bn" colSpan={2}>উৎপাদ মোট</td>
+              {elements.map((e) => {
+                const tot = atomCounts.right[e] || 0;
+                const ok  = tot === (atomCounts.left[e] || 0);
+                return (
+                  <td key={e} className={`font-black ${ok ? "text-[#15803D]" : "text-[#DC2626]"}`}>{tot}</td>
+                );
+              })}
+              {showMolarMass && <td />}
+              <td />
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Progress Journey Bar
+// ─────────────────────────────────────────────────────────────────────────────
+const ProgressJourneyBar = ({
+  reactions, solvedReactions, currentIdx, onSelect,
+}: {
+  reactions: typeof REACTIONS;
+  solvedReactions: Set<string>;
+  currentIdx: number;
+  onSelect: (i: number) => void;
+}) => (
+  <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-2.5">
+    {reactions.map((r, i) => {
+      const solved  = solvedReactions.has(r.id);
+      const current = i === currentIdx;
+      return (
+        <React.Fragment key={r.id}>
+          <Tooltip side="bottom" content={
+            <div>
+              <p className="font-bold bn text-[var(--ten-ink)] text-xs">{r.name}</p>
+              <p className="text-[var(--gray-400)] text-[10px]">{solved ? "✓ সমাধান · Solved" : current ? "সক্রিয় · Active" : "অসমাধান · Unsolved"}</p>
+            </div>
+          }>
+            <button
+              onClick={() => onSelect(i)}
+              className={`journey-dot shrink-0 transition-all ${
+                solved   ? "bg-[var(--ten-red)] border-[var(--ten-red)] text-white"
+                : current ? "bg-white border-[var(--ten-red)] text-[var(--ten-red)]"
+                :           "bg-[var(--gray-100)] border-[var(--gray-300)] text-[var(--gray-400)]"
+              }`}
+            >
+              {solved
+                ? <CheckCircle2 size={16} />
+                : <span className="text-[11px] font-black">{i + 1}</span>
+              }
+            </button>
+          </Tooltip>
+          {i < reactions.length - 1 && (
+            <div className={`h-1.5 flex-1 min-w-[8px] rounded-full transition-all ${
+              solvedReactions.has(r.id) ? "bg-[var(--ten-red)]" : "bg-[var(--gray-200)]"
+            }`} />
+          )}
+        </React.Fragment>
+      );
+    })}
+    <span className="text-xs font-bold text-[var(--gray-400)] shrink-0 ml-2">
+      {solvedReactions.size}/{reactions.length}
+    </span>
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Completion Modal
+// ─────────────────────────────────────────────────────────────────────────────
+const CompletionModal = ({
+  reaction, solvedCount, totalCount, onNext, onLibrary, onClose,
+}: {
+  reaction: typeof REACTIONS[0];
+  solvedCount: number; totalCount: number;
+  onNext: () => void; onLibrary: () => void; onClose: () => void;
+}) => (
+  <div className="modal-overlay" onClick={onClose}>
+    <motion.div
+      initial={{ scale: 0.85, y: 24, opacity: 0 }}
+      animate={{ scale: 1,    y: 0,  opacity: 1 }}
+      exit={{    scale: 0.85, y: 24, opacity: 0 }}
+      transition={{ type: "spring", stiffness: 360, damping: 28 }}
+      className="bg-white rounded-[24px] p-6 max-w-[360px] w-full mx-4 shadow-[var(--sh-float)]"
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div className="text-center space-y-4">
+        <div className="text-5xl">🎉</div>
+        <div>
+          <h3 className="text-xl font-bold bn text-[var(--ten-ink)]">অভিনন্দন!</h3>
+          <p className="text-xs text-[var(--gray-400)] mt-1">তুমি সফলভাবে সমতা করেছ</p>
+        </div>
+        <div className="bg-[var(--gray-50)] rounded-xl p-3 border border-[var(--border)]">
+          <p className="font-bold bn text-sm text-[var(--ten-ink)]">{reaction.name}</p>
+          <p className="font-mono text-xs text-[var(--gray-400)] mt-0.5">{reaction.formula}</p>
+        </div>
+        <div>
+          <div className="flex justify-between text-[10px] font-bold text-[var(--gray-500)] mb-1.5">
+            <span className="bn">অগ্রগতি</span>
+            <span>{solvedCount} / {totalCount} বিক্রিয়া</span>
+          </div>
+          <div className="h-2 bg-[var(--gray-100)] rounded-full overflow-hidden">
+            <motion.div className="h-full bg-[var(--ten-red)] rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: `${(solvedCount / totalCount) * 100}%` }}
+              transition={{ delay: 0.3, duration: 0.7 }}
+            />
+          </div>
+        </div>
+        <div className="flex gap-3 pt-1">
+          <button className="btn-pill flex-1 text-xs bn py-2.5"
+            onClick={onLibrary}>লাইব্রেরি</button>
+          <button className="btn-red flex-1 text-xs gap-1 bn py-2.5 rounded-xl"
+            onClick={onNext}>পরবর্তী <ChevronRight size={13} /></button>
+        </div>
+      </div>
+    </motion.div>
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tutorial Dropdown content
+// ─────────────────────────────────────────────────────────────────────────────
+const TUTORIAL_STEPS = [
+  { title: "বিক্রিয়া বেছে নাও · Choose a Reaction", body: "বাম সাইডবার বা প্রগ্রেস বার থেকে যেকোনো বিক্রিয়া বেছে নাও। / Select any reaction from the left sidebar or the progress bar." },
+  { title: "সহগ পরিবর্তন করো · Adjust Coefficients", body: "+ ও − বাটন দিয়ে প্রতিটি অণুর সহগ পরিবর্তন করো। / Use + and − buttons to change each molecule's coefficient." },
+  { title: "পরমাণু ট্র্যাকার দেখো · Watch Atom Tracker", body: "ডানদিকের লাইভ ট্র্যাকারে দেখো কোন পরমাণু এখনো অসমান। / Watch the live tracker to see which atoms are still unbalanced." },
+  { title: "সিমুলেশন ও টেবিল · Simulation & Table", body: "ব্যালান্সার সিমুলেশনে ভিজুয়ালি দেখো, টেবিলে সব সংখ্যা মিলাও। / Visualise in the Balancer Simulation, then confirm numbers in the table." },
+];
+
+const TutorialDropdownPanel = ({
+  stepsSeen, onStepSeen, onClose,
+}: {
+  stepsSeen: Set<number>; onStepSeen: (n: number) => void; onClose: () => void;
+}) => (
+  <div className="tutorial-dropdown">
+    <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
+      <div>
+        <p className="text-sm font-bold bn text-[var(--ten-ink)]">কীভাবে ব্যবহার করবে?</p>
+        <p className="text-[9px] text-[var(--gray-400)] font-bold mt-0.5">{stepsSeen.size}/4 ধাপ সম্পন্ন</p>
+      </div>
+      <button onClick={onClose} className="p-1 rounded-full hover:bg-[var(--gray-100)] transition-all">
+        <X size={14} className="text-[var(--gray-500)]" />
+      </button>
+    </div>
+    {/* Progress bar */}
+    <div className="h-1 bg-[var(--gray-100)]">
+      <div className="h-full bg-[var(--ten-red)] transition-all"
+        style={{ width: `${(stepsSeen.size / 4) * 100}%` }} />
+    </div>
+    <div className="px-4 py-2 space-y-0">
+      {TUTORIAL_STEPS.map((s, i) => (
+        <div key={i}
+          className={`flex gap-3 py-3 cursor-pointer ${i < TUTORIAL_STEPS.length - 1 ? "border-b border-[var(--border)]" : ""}`}
+          onClick={() => onStepSeen(i)}
+        >
+          <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-all ${
+            stepsSeen.has(i) ? "bg-[var(--ten-red)] border-[var(--ten-red)]" : "border-[var(--gray-300)]"
+          }`}>
+            {stepsSeen.has(i) && <CheckCircle2 size={11} className="text-white" />}
+          </div>
+          <div className="flex-1">
+            <p className={`text-xs font-bold bn ${stepsSeen.has(i) ? "text-[var(--gray-400)] line-through" : "text-[var(--ten-ink)]"}`}>{s.title}</p>
+            <p className="text-[10px] text-[var(--gray-400)] bn mt-0.5 leading-relaxed">{s.body}</p>
+          </div>
+        </div>
+      ))}
+    </div>
+    <div className="px-4 py-3 border-t border-[var(--border)] bg-[var(--gray-50)]">
+      {stepsSeen.size === 4
+        ? <p className="text-[10px] font-bold text-[#15803D] bn text-center">✓ সব ধাপ শেষ! এখন নিজে চেষ্টা করো।</p>
+        : <p className="text-[9px] text-[var(--gray-400)] text-center">{4 - stepsSeen.size}টি ধাপ বাকি আছে।</p>
+      }
+    </div>
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Navbar
+// ─────────────────────────────────────────────────────────────────────────────
+const Navbar = ({
+  onSearchClick, showTutorial, onTutorialToggle,
+  tutorialStepsSeen, onStepSeen, solvedCount, totalCount,
+  lang, onLangToggle,
+}: {
+  onSearchClick: () => void;
+  showTutorial: boolean; onTutorialToggle: () => void;
+  tutorialStepsSeen: Set<number>; onStepSeen: (n: number) => void;
+  solvedCount: number; totalCount: number;
+  lang: "bn" | "en"; onLangToggle: () => void;
+}) => {
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!showTutorial) return;
+    const handler = (e: MouseEvent) => {
+      if (!dropdownRef.current?.contains(e.target as Node)) onTutorialToggle();
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [showTutorial]);
+
+  return (
+    <nav className="fixed top-0 left-0 right-0 h-[60px] bg-white/95 backdrop-blur-[40px] border-b border-[var(--border)] z-[200] px-4 lg:px-8 flex items-center justify-between shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 bg-[var(--ten-red)] rounded-xl flex items-center justify-center text-white font-black text-lg italic shrink-0 shadow-sm">10</div>
+        <div>
+          <h1 className="text-[14px] font-bold leading-none text-[var(--ten-ink)] bn">রসায়ন ল্যাব</h1>
+          <p className="text-[8px] font-bold text-[var(--ten-red)] uppercase tracking-widest mt-0.5">Chemical Equation Balancer</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-1 relative" ref={dropdownRef}>
+        <button onClick={onSearchClick} className="p-2 rounded-xl text-[var(--gray-500)] hover:text-[var(--ten-red)] hover:bg-[#FFF0F1] transition-all">
+          <Search size={17} />
+        </button>
+        {/* Language toggle */}
+        <button onClick={onLangToggle}
+          className="px-2.5 py-1.5 rounded-xl text-[10px] font-black border transition-all hover:border-[var(--ten-red)] hover:text-[var(--ten-red)]"
+          style={{ borderColor: "var(--border)", color: "var(--fg-2)" }}
+          title="Toggle language"
+        >
+          {lang === "bn" ? "EN" : "বাং"}
+        </button>
+        {/* Tutorial button */}
+        <button onClick={onTutorialToggle}
+          className={`relative p-2 rounded-xl transition-all ${showTutorial ? "bg-[var(--ten-red)] text-white" : "text-[var(--gray-500)] hover:text-[var(--ten-red)] hover:bg-[#FFF0F1]"}`}
+        >
+          <BookOpen size={17} />
+          {solvedCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#16A34A] text-white text-[7px] font-black rounded-full flex items-center justify-center">
+              {solvedCount}
+            </span>
+          )}
+        </button>
+        {/* Tutorial dropdown */}
+        <AnimatePresence>
+          {showTutorial && (
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0,  scale: 1 }}
+              exit={{    opacity: 0, y: -8, scale: 0.97 }}
+              transition={{ duration: 0.18 }}
+              style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 250 }}
+            >
+              <TutorialDropdownPanel
+                stepsSeen={tutorialStepsSeen}
+                onStepSeen={onStepSeen}
+                onClose={onTutorialToggle}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <div className="w-8 h-8 rounded-full overflow-hidden border-2 border-[var(--ten-red)] ml-1 shrink-0">
+          <img src="https://ui-avatars.com/api/?name=Student&background=E8001D&color=fff" alt="Profile" />
+        </div>
+      </div>
+    </nav>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Bottom Nav
+// ─────────────────────────────────────────────────────────────────────────────
+const BottomNav = ({ activeTab, setActiveTab, lang }: { activeTab: string; setActiveTab: (t: string) => void; lang: "bn" | "en" }) => (
+  <nav className="fixed bottom-0 left-0 right-0 h-[60px] bg-white/95 backdrop-blur-[40px] border-t border-[var(--border)] z-[200] flex items-center justify-around px-2 shadow-[var(--sh-nav)]">
+    {[
+      { id: "home",    icon: LayoutDashboard, bn: "হোম",       en: "Home" },
+      { id: "lab",     icon: FlaskConical,    bn: "ল্যাব",     en: "Lab" },
+      { id: "library", icon: Library,         bn: "লাইব্রেরি", en: "Library" },
+      { id: "profile", icon: User,            bn: "প্রোফাইল", en: "Profile" },
+    ].map((tab) => (
+      <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+        className={`flex flex-col items-center gap-0.5 flex-1 py-2 rounded-xl transition-all ${
+          activeTab === tab.id ? "text-[var(--ten-red)] bg-[#FFF0F1]" : "text-[var(--gray-400)]"
+        }`}
+      >
+        <tab.icon size={19} fill={activeTab === tab.id ? "currentColor" : "none"} />
+        <span className="text-[9px] font-bold bn">{lang === "bn" ? tab.bn : tab.en}</span>
+      </button>
+    ))}
+  </nav>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Accordion
+// ─────────────────────────────────────────────────────────────────────────────
+const Accordion = ({
+  title, icon, children, defaultOpen = false, badge,
+}: {
+  title: string; icon: React.ReactNode; children: React.ReactNode;
+  defaultOpen?: boolean; badge?: React.ReactNode;
+}) => {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-[var(--border)] rounded-2xl overflow-hidden bg-white">
+      <button onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3.5 hover:bg-[var(--gray-50)] transition-colors"
+      >
+        <div className="flex items-center gap-2.5">
+          <span className="text-[var(--ten-red)]">{icon}</span>
+          <span className="font-bold text-base text-[var(--ten-ink)] bn leading-tight">{title}</span>
+          {badge}
+        </div>
+        <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
+          <ChevronDown size={15} className="text-[var(--gray-400)]" />
+        </motion.div>
+      </button>
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div key="c" initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 pt-1">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Coefficient Control (with tooltip)
+// ─────────────────────────────────────────────────────────────────────────────
+const CoefficientControl = ({
+  value, onChange, moleculeId, reaction, checkLevel,
+}: {
+  value: number; onChange: (v: number) => void; moleculeId: string;
+  reaction: typeof REACTIONS[0]; checkLevel: number;
+}) => {
+  const mol = [...reaction.reactants, ...reaction.products].find((m) => m.id === moleculeId)!;
+  const isCorrect = checkLevel >= 3 ? value === reaction.correctCoeffs[moleculeId] : null;
+  return (
+    <div className={`flex flex-col items-center gap-2 p-3 rounded-2xl border-2 transition-all ${
+      isCorrect === true  ? "border-[#86EFAC] bg-[#F0FDF4]"
+      : isCorrect === false ? "border-[#FECACA] bg-[#FFF8F8]"
+      : "border-[var(--border)] bg-[var(--gray-50)] hover:border-[var(--ten-red)]/40"
+    }`}>
+      {/* Atom chips */}
+      <div className="flex items-center gap-1 flex-wrap justify-center">
+        {Object.keys(mol.atoms).map((a) => {
+          const el = getEl(a);
+          return (
+            <Tooltip key={a} side="top" content={
+              <div>
+                <span className="font-bold" style={{ color: el.color }}>{el.nameBn} ({a})</span>
+                <p className="text-[var(--gray-400)]">#{el.number} · {el.mass} g/mol</p>
+              </div>
+            }>
+              <div className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[8px] font-black shadow-sm cursor-help"
+                style={{ background: el.color }}
+              >{a}</div>
+            </Tooltip>
+          );
+        })}
+      </div>
+      {/* Label */}
+      <span className={`font-mono font-bold text-xs px-2 py-0.5 rounded-lg border ${
+        isCorrect === true ? "bg-[#DCFCE7] text-[#15803D] border-[#86EFAC]" : "bg-white text-[var(--ten-ink)] border-[var(--border)]"
+      }`}>
+        {moleculeId.split(/([0-9]+)/).map((p, i) =>
+          /^[0-9]+$/.test(p) ? <sub key={i} className="text-[8px]">{p}</sub> : p
+        )}
+      </span>
+      {/* Counter */}
+      <div className="flex items-center gap-1.5">
+        <Tooltip side="top" content={<span>সহগ কমাও</span>}>
+          <button className="coeff-btn-minus" onClick={() => onChange(Math.max(1, value - 1))}>
+            <Minus size={10} />
+          </button>
+        </Tooltip>
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black text-lg transition-all ${
+          isCorrect === true ? "bg-[#16A34A] text-white shadow-sm" : "bg-white border-2 border-[var(--ten-red)] text-[var(--ten-red)]"
+        }`}>
+          {value}
+        </div>
+        <Tooltip side="top" content={<span>সহগ বাড়াও</span>}>
+          <button className="coeff-btn-plus" onClick={() => onChange(value + 1)}>
+            <Plus size={10} />
+          </button>
+        </Tooltip>
+      </div>
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Equation Display
+// ─────────────────────────────────────────────────────────────────────────────
+const EquationDisplay = ({
+  reaction, coeffs, isBalanced,
+}: { reaction: typeof REACTIONS[0]; coeffs: Record<string, number>; isBalanced: boolean }) => {
+  const mol = (id: string) => {
+    const c = coeffs[id] || 1;
+    const ok = c === reaction.correctCoeffs[id];
+    return (
+      <span key={id} className="inline-flex items-baseline gap-0.5">
+        <span className={`inline-flex items-center justify-center min-w-[20px] h-5 rounded-md text-xs font-black ${
+          ok ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#FEE2E2] text-[#DC2626]"
+        }`}>{c}</span>
+        <span className="font-mono font-bold text-sm text-[var(--ten-ink)]">
+          {id.split(/([0-9]+)/).map((p, i) => /^[0-9]+$/.test(p) ? <sub key={i} className="text-[9px]">{p}</sub> : p)}
+        </span>
+      </span>
+    );
+  };
+  return (
+    <div className={`flex flex-wrap items-center gap-x-1.5 gap-y-1 p-3 rounded-xl border text-sm transition-all ${
+      isBalanced ? "bg-[#F0FDF4] border-[#86EFAC]" : "bg-[var(--gray-50)] border-[var(--border)]"
+    }`}>
+      {reaction.reactants.map((r, i) => (
+        <React.Fragment key={r.id}>
+          {mol(r.id)}
+          {i < reaction.reactants.length - 1 && <span className="font-bold text-[var(--gray-300)] text-base">+</span>}
+        </React.Fragment>
+      ))}
+      <span className="text-[var(--ten-red)]"><ArrowRight size={15} /></span>
+      {reaction.products.map((p, i) => (
+        <React.Fragment key={p.id}>
+          {mol(p.id)}
+          {i < reaction.products.length - 1 && <span className="font-bold text-[var(--gray-300)] text-base">+</span>}
+        </React.Fragment>
+      ))}
+      {isBalanced && <CheckCircle2 size={15} className="text-[#16A34A] ml-1" />}
+    </div>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Check Solution Panel
+// ─────────────────────────────────────────────────────────────────────────────
+const CheckSolutionPanel = ({
+  level, onNextHint, onReveal, onClose, atomCounts, reaction, coeffs,
+}: {
+  level: number; onNextHint: () => void; onReveal: () => void; onClose: () => void;
+  atomCounts: { left: Record<string, number>; right: Record<string, number> };
+  reaction: typeof REACTIONS[0]; coeffs: Record<string, number>;
+}) => {
+  const unbalanced = Object.keys(atomCounts.left).filter(
+    (e) => (atomCounts.left[e] || 0) !== (atomCounts.right[e] || 0)
+  );
+  return (
+    <AnimatePresence>
+      {level > 0 && (
+        <motion.div initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 6 }} className="space-y-2.5 mt-2"
+        >
+          {level >= 1 && (
+            <div className="hint-box-1 border rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <Lightbulb size={13} />
+                <span className="text-[9px] font-bold uppercase tracking-widest">ইঙ্গিত ১ — অসমান পরমাণু</span>
+              </div>
+              {unbalanced.length === 0
+                ? <p className="text-sm font-bold bn">সব সমান! 🎉</p>
+                : <div className="flex flex-wrap gap-1.5">
+                    {unbalanced.map((e) => {
+                      const el = getEl(e);
+                      return (
+                        <span key={e} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-white/60 border border-current">
+                          <span className="w-4 h-4 rounded flex items-center justify-center text-white text-[7px] font-black" style={{ background: el.color }}>{e}</span>
+                          {atomCounts.left[e]||0} ≠ {atomCounts.right[e]||0}
+                        </span>
+                      );
+                    })}
+                  </div>
+              }
+            </div>
+          )}
+          {level >= 2 && (() => {
+            const first = reaction.reactants[0];
+            const correct = reaction.correctCoeffs[first.id];
+            return (
+              <div className="hint-box-2 border rounded-xl p-3">
+                <div className="flex items-center gap-2 mb-1.5">
+                  <Sparkles size={13} />
+                  <span className="text-[9px] font-bold uppercase tracking-widest">ইঙ্গিত ২ — প্রথম সহগ</span>
+                </div>
+                <p className="text-sm font-bold bn">
+                  <span className="font-mono">{first.id}</span> → সহগ = <span className="text-lg font-black">{correct}</span>
+                  {coeffs[first.id] === correct
+                    ? <span className="text-[#15803D] ml-2">✓</span>
+                    : <span className="text-[#DC2626] ml-2">→ ঠিক করো</span>
+                  }
+                </p>
+              </div>
+            );
+          })()}
+          {level >= 3 && (
+            <div className="hint-box-3 border rounded-xl p-3">
+              <div className="flex items-center gap-2 mb-2">
+                <CheckCircle2 size={13} />
+                <span className="text-[9px] font-bold uppercase tracking-widest">সম্পূর্ণ সমাধান</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {Object.entries(reaction.correctCoeffs).map(([id, coeff]) => (
+                  <span key={id} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-white/60 border border-current">
+                    <span className="font-black text-sm">{coeff}</span>
+                    <span className="font-mono">{id}</span>
+                    {coeffs[id] === coeff && <CheckCircle2 size={10} />}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex gap-2 flex-wrap">
+            {level < 3 && (
+              <button onClick={onNextHint} className="btn-pill text-xs gap-1 py-1.5 px-3">
+                <Lightbulb size={11} /> পরবর্তী
+              </button>
+            )}
+            {level < 3 && (
+              <button onClick={onReveal} className="btn-pill text-xs gap-1 py-1.5 px-3">
+                সব দেখাও
+              </button>
+            )}
+            <button onClick={onClose} className="btn-pill text-xs gap-1 py-1.5 px-3 border-[var(--ten-red)] text-[var(--ten-red)]">
+              <X size={11} /> বন্ধ
+            </button>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Molecule Info Card
+// ─────────────────────────────────────────────────────────────────────────────
+const MoleculeInfoCard = ({ molecule, coeff, role }: {
+  molecule: typeof REACTIONS[0]["reactants"][0]; coeff: number; role: "reactant" | "product";
+}) => (
+  <div className={`rounded-2xl p-3 border-2 space-y-2 ${
+    role === "reactant" ? "border-[#BFDBFE] bg-[#EFF6FF]" : "border-[#BBF7D0] bg-[#F0FDF4]"
+  }`}>
+    <div className="flex items-center justify-between">
+      <span className="font-mono font-black text-sm text-[var(--ten-ink)]">{molecule.id}</span>
+      <span className={`text-[7px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${
+        role === "reactant" ? "bg-[#DBEAFE] text-[#1D4ED8]" : "bg-[#DCFCE7] text-[#166534]"
+      }`}>{role === "reactant" ? "বিক্রিয়ক · Reactant" : "উৎপাদ · Product"}</span>
+    </div>
+    <div className="flex flex-wrap gap-1">
+      {Object.entries(molecule.atoms).map(([a, c]) => (
+        <PeriodicAtomCard key={a} symbol={a} count={c * coeff} size="sm" />
+      ))}
+    </div>
+    <div className="flex items-center justify-between text-[9px] font-bold text-[var(--gray-500)]">
+      <span>{molecule.name}</span>
+      <span>{(molecule.molarMass * coeff).toFixed(2)} g</span>
+    </div>
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main App
+// ─────────────────────────────────────────────────────────────────────────────
+export default function App() {
+  // Core state
+  const [activeTab, setActiveTab]   = useState("lab");
+  const [currentIdx, setCurrentIdx] = useState(0);
+  const [coeffs, setCoeffs]         = useState<Record<string, number>>({});
+  const [search, setSearch]         = useState("");
+  const [showSummary, setShowSummary] = useState(false);
+  const [checkLevel, setCheckLevel] = useState(0);
+
+  // New feature state
+  const [simMode, setSimMode]     = useState<"3d" | "balancer">("3d");
+  const [zoom3D, setZoom3D]       = useState(8);
+  const [showBonds, setShowBonds] = useState(true);
+  const [showMolarMass, setShowMolarMass] = useState(true);
+  const [solvedReactions, setSolvedReactions] = useState<Set<string>>(new Set());
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [showTutorialDropdown, setShowTutorialDropdown] = useState(false);
+  const [tutorialStepsSeen, setTutorialStepsSeen] = useState<Set<number>>(new Set());
+  const [showOnlyUnsolved, setShowOnlyUnsolved] = useState(false);
+  const [hoveredAtom, setHoveredAtom] = useState<{ symbol: string; x: number; y: number } | null>(null);
+  const [lang, setLang] = useState<"bn" | "en">("bn");
+  const [segmentFilter, setSegmentFilter] = useState<"All" | "SSC" | "HSC">("All");
+  const [selectedElement, setSelectedElement] = useState<string | null>(null);
+
+  const controlsRef = useRef<any>(null);
+  const prevBalanced = useRef(false);
+
+  const reaction = REACTIONS[currentIdx];
+
+  // ── Reset on reaction change ─────────────────────────────────────────────
+  const handleReset = useCallback(() => {
+    const init: Record<string, number> = {};
+    reaction.reactants.forEach((r) => (init[r.id] = 1));
+    reaction.products.forEach((p)  => (init[p.id] = 1));
+    setCoeffs(init);
+    setCheckLevel(0);
+  }, [reaction]);
+
+  useEffect(() => {
+    handleReset();
+    setShowSummary(false);
+    prevBalanced.current = false;
+  }, [currentIdx]);
+
+  // ── Derived state ────────────────────────────────────────────────────────
+  const atomCounts = useMemo(() => {
+    const c = { left: {} as Record<string, number>, right: {} as Record<string, number> };
+    reaction.reactants.forEach((r) =>
+      Object.entries(r.atoms).forEach(([a, n]) => (c.left[a] = (c.left[a] || 0) + n * (coeffs[r.id] || 1)))
+    );
+    reaction.products.forEach((p) =>
+      Object.entries(p.atoms).forEach(([a, n]) => (c.right[a] = (c.right[a] || 0) + n * (coeffs[p.id] || 1)))
+    );
+    return c;
+  }, [coeffs, currentIdx]);
+
+  const isBalanced = useMemo(() => {
+    const els = new Set([...Object.keys(atomCounts.left), ...Object.keys(atomCounts.right)]);
+    return Array.from(els).every((e) => atomCounts.left[e] === atomCounts.right[e]);
+  }, [atomCounts]);
+
+  const reactionElements = useMemo(() =>
+    Array.from(new Set([
+      ...reaction.reactants.flatMap((r) => Object.keys(r.atoms)),
+      ...reaction.products.flatMap((p)  => Object.keys(p.atoms)),
+    ])),
+    [currentIdx]
+  );
+
+  // ── Completion tracking ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (isBalanced && !prevBalanced.current) {
+      setSolvedReactions((prev) => {
+        if (prev.has(reaction.id)) return prev;
+        const next = new Set(prev);
+        next.add(reaction.id);
+        setShowCompletionModal(true);
+        return next;
+      });
+    }
+    prevBalanced.current = isBalanced;
+  }, [isBalanced, reaction.id]);
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const setCoeff = (id: string, v: number) => setCoeffs((p) => ({ ...p, [id]: v }));
+  const prevReaction = () => setCurrentIdx((i) => (i - 1 + REACTIONS.length) % REACTIONS.length);
+  const nextReaction = () => setCurrentIdx((i) => (i + 1) % REACTIONS.length);
+
+  const filtered = REACTIONS.filter((r) => {
+    const matchSearch =
+      r.name.toLowerCase().includes(search.toLowerCase()) ||
+      (r.nameEn ?? "").toLowerCase().includes(search.toLowerCase()) ||
+      r.formula.toLowerCase().includes(search.toLowerCase());
+    const matchSolved = showOnlyUnsolved ? !solvedReactions.has(r.id) : true;
+    const matchSegment = segmentFilter === "All" || r.segment === segmentFilter || r.segment === "Both";
+    return matchSearch && matchSolved && matchSegment;
+  });
+
+  const handleStepSeen = (n: number) =>
+    setTutorialStepsSeen((prev) => {
+      const s = new Set(prev);
+      s.has(n) ? s.delete(n) : s.add(n);
+      return s;
+    });
+
+  const handleResetZoom = () => {
+    setZoom3D(8);
+    controlsRef.current?.reset?.();
+  };
+
+  // ── 3D Canvas block ───────────────────────────────────────────────────────
+  const canvas3D = (
+    <div className="aspect-square w-full max-h-[480px] relative">
+      {/* Canvas */}
+      <div className="absolute inset-0 rounded-xl overflow-hidden bg-black/25 border border-white/5">
+        <Canvas camera={{ position: [0, 0, 8], fov: 50 }}>
+          <Suspense fallback={null}>
+            <CameraController zoom={zoom3D} controlsRef={controlsRef} />
+            <Stage environment="city" intensity={0.4}>
+              <group position={[-2.5, 0, 0]}>
+                {reaction.reactants.map((r, i) => (
+                  <group key={r.id} position={[0, (i - (reaction.reactants.length - 1) / 2) * 1.8, 0]}>
+                    <MolecularCluster atoms={r.atoms} position={[0, 0, 0]} bondLength={0.8} />
+                  </group>
+                ))}
+              </group>
+              <group position={[2.5, 0, 0]}>
+                {reaction.products.map((p, i) => (
+                  <group key={p.id} position={[0, (i - (reaction.products.length - 1) / 2) * 1.8, 0]}>
+                    <MolecularCluster atoms={p.atoms} position={[0, 0, 0]} bondLength={0.8} />
+                  </group>
+                ))}
+              </group>
+            </Stage>
+          </Suspense>
+          <OrbitControls ref={controlsRef} enableZoom={true} minDistance={3} maxDistance={20}
+            autoRotate autoRotateSpeed={1.5} />
+        </Canvas>
+      </div>
+      {/* Zoom overlay */}
+      <div className="absolute top-2 right-2 flex flex-col gap-1 z-10 pointer-events-auto">
+        <Tooltip side="left" content="Zoom In (+)">
+          <button onClick={() => setZoom3D((z) => Math.max(3, z - 1.5))} className="zoom-overlay-btn">
+            <ZoomIn size={11} />
+          </button>
+        </Tooltip>
+        <Tooltip side="left" content="Zoom Out (−)">
+          <button onClick={() => setZoom3D((z) => Math.min(20, z + 1.5))} className="zoom-overlay-btn">
+            <ZoomOut size={11} />
+          </button>
+        </Tooltip>
+        <Tooltip side="left" content="Reset View">
+          <button onClick={handleResetZoom} className="zoom-overlay-btn">
+            <RefreshCw size={10} />
+          </button>
+        </Tooltip>
+      </div>
+      {/* Labels */}
+      <div className="absolute inset-x-0 bottom-2 flex justify-between px-3 pointer-events-none">
+        <span className="text-[7px] font-bold text-white/35 uppercase tracking-widest bg-black/25 px-2 py-0.5 rounded-full">⟵ বিক্রিয়ক</span>
+        <span className="text-[7px] font-bold text-white/35 uppercase tracking-widest bg-black/25 px-2 py-0.5 rounded-full">উৎপাদ ⟶</span>
+      </div>
+    </div>
+  );
+
+  // ── Balancer sim block ────────────────────────────────────────────────────
+  const balancerSimBlock = (
+    <div className="space-y-2">
+      <BalancerSimulation
+        reaction={reaction}
+        coeffs={coeffs}
+        isBalanced={isBalanced}
+        showBonds={showBonds}
+        elements={ELEMENTS}
+        onAtomHover={setHoveredAtom}
+        selectedElement={selectedElement}
+      />
+      {/* Bond toggle */}
+      <div className="flex items-center gap-2 justify-end">
+        <button onClick={() => setShowBonds((v) => !v)}
+          className={`flex items-center gap-1.5 text-[9px] font-bold px-2.5 py-1.5 rounded-full border transition-all ${
+            showBonds ? "bg-[var(--ten-red)] text-white border-[var(--ten-red-dark)]" : "bg-white border-[var(--border)] text-[var(--gray-500)]"
+          }`}
+        >
+          <Link2 size={10} /> {showBonds ? "বন্ড দেখাচ্ছে" : "বন্ড লুকানো"}
+        </button>
+      </div>
+    </div>
+  );
+
+  // ── Hover tooltip for atom in balancer sim ───────────────────────────────
+  const atomHoverTooltip = hoveredAtom && (() => {
+    const el = getEl(hoveredAtom.symbol);
+    return (
+      <div className="tooltip-card"
+        style={{ position: "fixed", left: hoveredAtom.x + 12, top: hoveredAtom.y - 40, zIndex: 600, pointerEvents: "none" }}
+      >
+        <p className="font-black" style={{ color: el.color }}>{hoveredAtom.symbol} · #{el.number}</p>
+        <p className="font-bold bn text-[var(--ten-ink)]">{el.nameBn}</p>
+        <p className="text-[var(--gray-400)]">{el.mass} g/mol · {el.category}</p>
+      </div>
+    );
+  })();
+
+  // ── Mobile accordion sections ─────────────────────────────────────────────
+  const mobileAccordions = (
+    <div className="space-y-3 xl:hidden">
+      <Accordion title="পরমাণু ট্র্যাকার · Atom Tracker" icon={<Atom size={14} />} defaultOpen={true}
+        badge={
+          isBalanced
+            ? <span className="text-[7px] font-bold bg-[#DCFCE7] text-[#15803D] px-1.5 py-0.5 rounded-full">✓ সমতা</span>
+            : <span className="text-[7px] font-bold bg-[#FEE2E2] text-[#DC2626] px-1.5 py-0.5 rounded-full">অসমতা</span>
+        }
+      >
+        <AtomTracker atomCounts={atomCounts} />
+      </Accordion>
+
+      <Accordion title="ব্যালান্সার সিমুলেশন · Balancer Simulation" icon={<FlaskConical size={14} />} defaultOpen={false}>
+        {balancerSimBlock}
+      </Accordion>
+
+      <Accordion title="ব্যালান্সার টেবিল · Balancer Table" icon={<TableProperties size={14} />} defaultOpen={false}>
+        <BalancerTable
+          reaction={reaction} coeffs={coeffs} atomCounts={atomCounts}
+          showMolarMass={showMolarMass} onToggleMolarMass={() => setShowMolarMass((v) => !v)}
+        />
+      </Accordion>
+
+      <Accordion title="অণু বিশ্লেষণ · Molecule Analysis" icon={<Beaker size={14} />} defaultOpen={false}>
+        <div className="space-y-2">
+          {reaction.reactants.map((m) => <MoleculeInfoCard key={m.id} molecule={m} coeff={coeffs[m.id] || 1} role="reactant" />)}
+          {reaction.products.map((m)  => <MoleculeInfoCard key={m.id} molecule={m} coeff={coeffs[m.id] || 1} role="product" />)}
+        </div>
+      </Accordion>
+
+      <Accordion title="হিসাব-নিকাশ · Calculations" icon={<Calculator size={14} />} defaultOpen={false}>
+        <div className="rounded-xl border border-[var(--border)] overflow-hidden">
+          <table className="w-full text-xs">
+            <thead className="bg-[var(--gray-50)]">
+              <tr>
+                {["অণু", "আ. ভর", "মোট"].map((h) => (
+                  <th key={h} className="px-3 py-2 text-left text-[8px] font-bold uppercase tracking-widest text-[var(--gray-500)] bn">{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-[var(--border)]">
+              {[...reaction.reactants, ...reaction.products].map((m) => (
+                <tr key={m.id} className="hover:bg-[var(--gray-50)]">
+                  <td className="px-3 py-2 font-mono font-bold text-[var(--ten-ink)]">{m.id}</td>
+                  <td className="px-3 py-2 text-[var(--gray-500)]">{m.molarMass.toFixed(2)}</td>
+                  <td className="px-3 py-2 font-bold text-[var(--ten-red)]">{(m.molarMass * (coeffs[m.id] || 1)).toFixed(2)} g</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="mt-3 p-3 bg-[var(--info-soft)] rounded-xl border border-[#BFDBFE] flex gap-2 items-start">
+          <Zap size={12} className="text-[var(--info)] shrink-0 mt-0.5" />
+          <p className="text-[9px] text-[var(--fg-2)] bn leading-relaxed">সমতাকৃত সমীকরণে বাম ও ডান পাশের মোট ভর সমান — ভরের নিত্যতা সূত্র।</p>
+        </div>
+      </Accordion>
+    </div>
+  );
+
+  // ══════════════════════════════════════════════════════════════════════════
+  return (
+    <div className="min-h-screen bg-[var(--gray-50)] font-sans pt-[60px] pb-[68px]">
+      <Navbar
+        onSearchClick={() => setActiveTab("library")}
+        showTutorial={showTutorialDropdown}
+        onTutorialToggle={() => setShowTutorialDropdown((v) => !v)}
+        tutorialStepsSeen={tutorialStepsSeen}
+        onStepSeen={handleStepSeen}
+        solvedCount={solvedReactions.size}
+        totalCount={REACTIONS.length}
+        lang={lang}
+        onLangToggle={() => setLang((l) => l === "bn" ? "en" : "bn")}
+      />
+
+      {/* Fixed atom hover tooltip */}
+      {atomHoverTooltip}
+
+      <AnimatePresence mode="wait">
+
+        {/* ================================================================ */}
+        {/* LAB TAB                                                          */}
+        {/* ================================================================ */}
+        {activeTab === "lab" && (
+          <motion.div key="lab" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}>
+
+            {/* Progress Journey Bar — sticky below navbar */}
+            <div className="sticky top-[60px] z-[100] bg-[var(--gray-50)] border-b border-[var(--border)] px-4 lg:px-6 py-3">
+              <ProgressJourneyBar
+                reactions={REACTIONS}
+                solvedReactions={solvedReactions}
+                currentIdx={currentIdx}
+                onSelect={setCurrentIdx}
+              />
+            </div>
+
+            {/* 3-column layout */}
+            <div className="flex min-h-[calc(100vh-152px)]">
+
+              {/* ── LEFT SIDEBAR (xl+) ─────────────────────────────────── */}
+              <aside className="hidden xl:flex flex-col w-[220px] shrink-0 border-r border-[var(--border)] bg-white sticky top-[108px] h-[calc(100vh-168px)] overflow-y-auto no-scrollbar p-3 gap-4">
+                <div>
+                  <p className="text-[7px] font-bold uppercase tracking-widest text-[var(--gray-400)] mb-2">বিক্রিয়া বেছে নাও</p>
+                  <div className="space-y-1">
+                    {REACTIONS.map((r, i) => {
+                      const solved = solvedReactions.has(r.id);
+                      return (
+                        <button key={r.id} onClick={() => setCurrentIdx(i)}
+                          className={`w-full text-left px-2.5 py-2 rounded-xl text-[10px] font-bold transition-all flex items-center gap-1.5 ${
+                            currentIdx === i
+                              ? "bg-[var(--ten-red)] text-white shadow-sm"
+                              : "hover:bg-[var(--gray-100)] text-[var(--gray-700)]"
+                          }`}
+                        >
+                          {solved && <CheckCircle2 size={10} className={currentIdx === i ? "text-white" : "text-[#16A34A]"} />}
+                          <span className="bn leading-tight flex-1 truncate">{r.name}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+                <div className="border-t border-[var(--border)] pt-3">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--gray-400)] mb-2">পর্যায় সারণী · Periodic Table</p>
+                  <div className="flex flex-wrap gap-1">
+                    {reactionElements.map((e) => (
+                      <PeriodicAtomCard key={e} symbol={e} size="sm"
+                        isHighlighted={selectedElement === e}
+                        onSelect={() => setSelectedElement(e)}
+                        onDeselect={() => setSelectedElement(null)}
+                      />
                     ))}
                   </div>
                 </div>
-              </div>
+              </aside>
 
-              {/* Action Button */}
-              <div className="px-1 md:px-2">
-                <button
-                  onClick={() => checkBalance()}
-                  className={`tour-step-exam group relative w-full h-14 md:h-16 rounded-xl md:rounded-2xl font-black text-base md:text-xl transition-all flex justify-center items-center gap-3 shadow-xl overflow-hidden
-                    ${result?.balanced ? "bg-[#1CAB55] hover:bg-[#15803d] shadow-[#1CAB55]/20" : "bg-[#E8001D] hover:bg-[#be0018] shadow-[#E8001D]/20"}
-                  `}
-                >
-                  <div className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <CheckCircle2 size={24} className="w-5 h-5 md:w-6 md:h-6" />
-                  <span>সমতা পরীক্ষা করো (Examine Balance)</span>
-                </button>
-              </div>
+              {/* ── CENTER ──────────────────────────────────────────────── */}
+              <main className="flex-1 min-w-0 p-4 lg:p-5 space-y-4">
 
-              {/* Examine Balance Result / Feedback Box */}
-              <AnimatePresence>
-                {result && (
-                  <motion.div
-                    initial={{ opacity: 0, y: -10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -10 }}
-                    className={`p-5 md:p-6 border rounded-2xl mx-1 md:mx-2 shadow-sm ${
-                      result.balanced
-                        ? "bg-green-50 border-green-200"
-                        : "bg-red-50 border-red-200"
-                    }`}
-                  >
-                    <div className="flex gap-4 items-start">
-                      <div
-                        className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 text-white shadow-lg ${
-                          result.balanced ? "bg-green-500" : "bg-[#E8001D]"
-                        }`}
-                      >
-                        {result.balanced ? (
-                          <CheckCircle2 size={24} />
-                        ) : (
-                          <Info size={24} />
-                        )}
+                {/* Reaction navigator */}
+                <div className="flex items-center gap-2 bg-white border border-[var(--border)] rounded-2xl px-3 py-2 shadow-sm">
+                  <button onClick={prevReaction}
+                    className="p-1.5 rounded-xl border border-[var(--border)] hover:border-[var(--ten-red)] hover:text-[var(--ten-red)] transition-all bg-white shrink-0"
+                  ><ChevronLeft size={15} /></button>
+                  <div className="flex-1 min-w-0 text-center">
+                    <p className="text-[7px] font-bold uppercase tracking-widest text-[var(--gray-400)]">{currentIdx + 1} / {REACTIONS.length}</p>
+                    <p className="text-sm font-bold bn text-[var(--ten-ink)] truncate">{lang === "bn" ? reaction.name : reaction.nameEn}</p>
+                  </div>
+                  <button onClick={nextReaction}
+                    className="p-1.5 rounded-xl border border-[var(--border)] hover:border-[var(--ten-red)] hover:text-[var(--ten-red)] transition-all bg-white shrink-0"
+                  ><ChevronRight size={15} /></button>
+                </div>
+
+                {/* Hero dark card */}
+                <div className="premium rounded-[20px] overflow-hidden">
+                  <div className="p-4 space-y-3">
+                    {/* Title + controls */}
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1 flex-1 min-w-0">
+                        <span className="inline-flex items-center gap-1 bg-[var(--ten-red)]/20 text-[var(--ten-red-soft)] px-2 py-0.5 rounded-full text-[7px] font-bold uppercase tracking-widest border border-[var(--ten-red)]/20">
+                          <FlaskConical size={8} /> Active Lab
+                        </span>
+                        <h2 className="text-lg font-bold bn text-white leading-tight">{lang === "bn" ? reaction.name : reaction.nameEn}</h2>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-white/50 font-mono text-xs">{reaction.formula}</p>
+                          <span className={`text-[7px] font-bold px-1.5 py-0.5 rounded-full border ${
+                            reaction.segment === "SSC"
+                              ? "bg-[#1D4ED8]/20 text-blue-300 border-blue-500/30"
+                              : "bg-[var(--ten-red)]/20 text-red-300 border-red-500/30"
+                          }`}>{reaction.segment}</span>
+                          <span className="text-white/30 text-[7px] truncate max-w-[120px]">
+                            {lang === "bn" ? reaction.chapter : reaction.chapterEn}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <h4
-                          className={`text-lg font-black ${
-                            result.balanced
-                              ? "text-green-800"
-                              : "text-[#E8001D]"
-                          }`}
-                        >
-                          {result.balanced
-                            ? "সঠিক হয়েছে! (Correct!)"
-                            : "ভুল হয়েছে! (Incorrect!)"}
-                        </h4>
-                        <p
-                          className={`text-sm mt-1 mb-4 font-medium ${
-                            result.balanced ? "text-green-700" : "text-red-700"
-                          }`}
-                        >
-                          {result.msg}
-                        </p>
-
-                        {!result.balanced && (
-                          <div className="mt-4 pt-4 border-t border-red-200">
-                            <p className="text-red-700 text-xs md:text-sm mb-4 font-semibold leading-relaxed">
-                              পিছনে গিয়ে 'Atoms Tracking' বক্সটি দেখো। যেসব মৌল
-                              'Unbalanced' দেখাচ্ছে, সেগুলোর সংখ্যা সমান করার
-                              জন্য সহগ (Coefficient) পরিবর্তন করো।
-                            </p>
-                            <button
-                              onClick={() => {
-                                // Apply Correct Balance
-                                if (currentReaction.correctCoeffs) {
-                                  setCoeffs(currentReaction.correctCoeffs);
-                                  setResult(null);
-                                }
-                              }}
-                              className="w-full bg-[#E8001D]/10 text-[#E8001D] hover:bg-[#E8001D]/20 font-bold py-3 px-6 rounded-xl text-sm transition-colors text-center"
-                            >
-                              Show Answer • সঠিক উত্তর বসাও
-                            </button>
-                          </div>
-                        )}
+                      <div className="flex gap-1.5 shrink-0">
+                        <Tooltip side="bottom" content="বিক্রিয়ার বিবরণ">
+                          <button onClick={() => setShowSummary((v) => !v)}
+                            className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all"
+                          ><Info size={15} /></button>
+                        </Tooltip>
+                        <Tooltip side="bottom" content="রিসেট">
+                          <button onClick={handleReset}
+                            className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all"
+                          ><RotateCw size={15} /></button>
+                        </Tooltip>
                       </div>
                     </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
 
-              {/* Atoms Tracking Dashboard */}
-              <div className="tour-step-tracking bg-gray-50 border border-[#E5E7EB] rounded-[24px] md:rounded-3xl p-4 md:p-6 mb-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <h4 className="text-[9px] md:text-[10px] font-black text-gray-400 uppercase tracking-widest font-['Inter']">
-                    Atoms Tracking • পরমাণু পর্যবেক্ষণ
-                  </h4>
-                  <Tooltip
-                    title="Atoms Tracking (পরমাণু পর্যবেক্ষণ)"
-                    text="বিক্রিয়ক এবং উৎপাদে প্রতিটি মৌলের পরমাণুর সংখ্যা সমান হতে হবে (ভরের নিত্যতা সূত্র)।"
-                    visual={
-                      <div className="flex gap-2 justify-center items-center">
-                        <div className="w-4 h-4 bg-blue-500 rounded-full" />{" "}
-                        <span className="font-bold">+</span>{" "}
-                        <div className="w-4 h-4 bg-red-500 rounded-full" />{" "}
-                        <span className="font-bold">=</span>{" "}
-                        <div className="w-6 h-4 bg-gradient-to-r from-blue-500 to-red-500 rounded-full" />
-                      </div>
-                    }
-                  >
-                    <Info
-                      size={14}
-                      className="text-gray-400 cursor-pointer hover:text-gray-600 transition-colors"
-                    />
-                  </Tooltip>
-                </div>
-                <div className="space-y-3 md:space-y-4">
-                  {allElements.map((e) => {
-                    const isBalanced =
-                      atomCounts.left[e] === atomCounts.right[e];
-                    const elementColors: Record<string, string> = {
-                      H: "bg-blue-400",
-                      O: "bg-red-400",
-                      N: "bg-indigo-400",
-                      C: "bg-gray-800",
-                      Cu: "bg-orange-700",
-                      K: "bg-purple-500",
-                      Mn: "bg-pink-500",
-                      Cl: "bg-green-500",
-                    };
-                    return (
-                      <div
-                        key={e}
-                        className={`
-                          flex items-center justify-between p-3 md:p-4 rounded-xl md:rounded-2xl transition-all border-2
-                          ${isBalanced ? "bg-white border-[#1CAB55]/20 shadow-sm" : "bg-red-50/10 border-[#E8001D]/20 shadow-inner"}
-                        `}
+                    {/* Summary */}
+                    <AnimatePresence>
+                      {showSummary && (
+                        <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: "auto", opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }} className="overflow-hidden"
+                        >
+                          <div className="bg-white/10 rounded-xl p-3 border border-white/10 space-y-1.5">
+                            <p className="text-xs text-white/85 leading-relaxed">{lang === "bn" ? reaction.summary : reaction.summaryEn}</p>
+                            <div className="flex items-start gap-1.5 text-[8px] text-white/40 font-bold border-t border-white/10 pt-2">
+                              <TrendingUp size={9} className="shrink-0 mt-0.5" />
+                              <span>{lang === "bn" ? reaction.useCase : reaction.useCaseEn}</span>
+                            </div>
+                            <div className="flex items-center gap-1 text-[7px] text-white/30 pt-1 border-t border-white/10">
+                              <BookOpen size={8} />
+                              <span>{lang === "bn" ? reaction.chapter : reaction.chapterEn}</span>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    {/* Sim mode toggle */}
+                    <div className="flex bg-black/20 p-1 rounded-xl gap-1">
+                      {[
+                        { id: "3d",       label: "3D অণু · Molecule", icon: <Atom size={12} /> },
+                        { id: "balancer", label: "ব্যালান্সার · Balancer", icon: <Scale size={12} /> },
+                      ].map((m) => (
+                        <button key={m.id} onClick={() => setSimMode(m.id as any)}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-bold transition-all ${
+                            simMode === m.id ? "bg-white text-[var(--ten-ink)] shadow-sm" : "text-white/60 hover:text-white/90"
+                          }`}
+                        >
+                          {m.icon}
+                          <span className="bn">{m.label}</span>
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Canvas or Sim */}
+                    <AnimatePresence mode="wait">
+                      <motion.div key={simMode} initial={{ opacity: 0, scale: 0.97 }}
+                        animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.97 }}
+                        transition={{ duration: 0.2 }}
                       >
-                        <div className="flex items-center gap-2 md:gap-3">
-                          <div
-                            className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center font-bold text-xs md:text-sm text-white shadow-lg ${elementColors[e] || "bg-gray-700"}`}
+                        {simMode === "3d" ? canvas3D : balancerSimBlock}
+                      </motion.div>
+                    </AnimatePresence>
+
+                    {/* Element chips */}
+                    <div className="flex flex-wrap gap-1.5 pt-0.5">
+                      {reactionElements.map((e) => {
+                        const el = getEl(e);
+                        const isHighlit = selectedElement === e;
+                        return (
+                          <div key={e}
+                            className="flex items-center gap-1 px-2 py-1 rounded-full border text-white cursor-pointer transition-all"
+                            style={{
+                              borderColor: isHighlit ? el.color : "rgba(255,255,255,0.15)",
+                              background: isHighlit ? `${el.color}55` : "rgba(255,255,255,0.1)",
+                              boxShadow: isHighlit ? `0 0 10px ${el.color}88` : undefined,
+                            }}
+                            onMouseEnter={() => setSelectedElement(e)}
+                            onMouseLeave={() => setSelectedElement(null)}
                           >
-                            {e}
+                            <span className="text-[7px] font-bold opacity-50">#{el.number}</span>
+                            <span className="text-xs font-black">{e}</span>
+                            <span className="text-[7px] opacity-50">{el.nameBn}</span>
                           </div>
-                          <div className="flex flex-col">
-                            <span className="text-[10px] md:text-xs font-bold uppercase tracking-wider font-['Inter'] ${isBalanced ? 'text-[#1CAB55]' : 'text-[#E8001D]'}">
-                              {isBalanced ? "Balanced" : "Unbalanced"}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-3 md:gap-6">
-                          <div className="flex flex-col items-center">
-                            <span className="text-[8px] uppercase font-bold text-gray-400 mb-0.5 font-['Inter']">
-                              React.
-                            </span>
-                            <div
-                              className={`px-2 md:px-3 py-0.5 md:py-1 rounded-md md:rounded-lg text-sm md:text-lg font-black font-['Inter'] ${isBalanced ? "text-gray-700" : "text-red-600"}`}
-                            >
-                              {atomCounts.left[e] || 0}
-                            </div>
-                          </div>
-                          <ArrowRight
-                            size={12}
-                            className="text-gray-300 mt-2"
-                          />
-                          <div className="flex flex-col items-center">
-                            <span className="text-[8px] uppercase font-bold text-gray-400 mb-0.5 font-['Inter']">
-                              Prod.
-                            </span>
-                            <div
-                              className={`px-2 md:px-3 py-0.5 md:py-1 rounded-md md:rounded-lg text-sm md:text-lg font-black font-['Inter'] ${isBalanced ? "text-gray-700" : "text-red-600"}`}
-                            >
-                              {atomCounts.right[e] || 0}
-                            </div>
-                          </div>
-                          <div
-                            className={`p-1 md:p-1.5 rounded-full ${isBalanced ? "text-[#1CAB55]" : "text-[#E8001D]"}`}
-                          >
-                            {isBalanced ? (
-                              <CheckCircle2
-                                size={18}
-                                className="md:w-6 md:h-6"
-                              />
-                            ) : (
-                              <XCircle size={18} className="md:w-6 md:h-6" />
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          </div>
-          <div className="h-20 lg:hidden"></div>{" "}
-          {/* Mobile spacer for bottom nav */}
-        </section>
-      </main>
-
-      {/* SUMMARY MODAL */}
-      <AnimatePresence>
-        {showSummary && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-[#0B1117]/80 backdrop-blur-sm z-[150] flex items-center justify-center p-4 md:p-6"
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
-              className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col"
-            >
-              <div className="p-6 md:p-8 bg-[#111827] text-white flex justify-between items-start relative overflow-hidden">
-                <div className="absolute -right-10 -top-10 text-white/5 pointer-events-none">
-                  <BookOpen size={150} />
-                </div>
-                <div className="relative z-10">
-                  <h2 className="text-2xl md:text-3xl font-black tracking-tight mb-2">
-                    {currentReaction.name}
-                  </h2>
-                  <p className="text-[#94a3b8] font-bold font-['Inter'] text-lg">
-                    {currentReaction.formula}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setShowSummary(false)}
-                  className="h-10 w-10 shrink-0 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors relative z-10"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-
-              <div className="p-6 md:p-8 space-y-6">
-                <div>
-                  <h4 className="text-sm font-black text-[#E8001D] uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <Info size={18} />
-                    Reaction Summary • বিক্রিয়ার সারসংক্ষেপ
-                  </h4>
-                  <p className="text-gray-700 text-sm md:text-base leading-relaxed font-medium bg-gray-50 border border-[#E5E7EB] p-4 rounded-xl">
-                    {currentReaction.summary}
-                  </p>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
 
-                <div>
-                  <h4 className="text-sm font-black text-[#1CAB55] uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <CheckCircle2 size={18} />
-                    Use Case • ব্যবহারিক ক্ষেত্র
-                  </h4>
-                  <p className="text-gray-700 text-sm md:text-base leading-relaxed font-medium bg-[#1CAB55]/5 border border-[#1CAB55]/20 p-4 rounded-xl">
-                    {currentReaction.useCase}
-                  </p>
-                </div>
-              </div>
+                {/* Live equation */}
+                <EquationDisplay reaction={reaction} coeffs={coeffs} isBalanced={isBalanced} />
 
-              <div className="p-6 bg-gray-50 border-t border-[#E5E7EB] flex justify-end">
-                <button
-                  onClick={() => setShowSummary(false)}
-                  className="px-6 py-3 bg-[#111827] text-white font-bold rounded-xl hover:bg-[#111827]/90 transition-colors"
-                >
-                  Close (বন্ধ করো)
-                </button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                {/* Coefficient controls */}
+                <div className="bg-white border border-[var(--border)] rounded-2xl p-4 space-y-4 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-[9px] font-bold uppercase tracking-widest text-[var(--gray-500)] flex items-center gap-1.5">
+                      <Scale size={12} className="text-[var(--ten-red)]" /> সহগ সমতাকরণ · Coefficient Balancing
+                    </h3>
+                    <button onClick={handleReset}
+                      className="text-[9px] font-bold text-[var(--gray-400)] hover:text-[var(--ten-red)] flex items-center gap-1 transition-all"
+                    ><RotateCw size={10} /> রিসেট</button>
+                  </div>
 
-      {/* SEARCH MODAL */}
-      <AnimatePresence>
-        {isSearchOpen && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-white/80 backdrop-blur-xl"
-          >
-            <motion.div
-              initial={{ scale: 0.95, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 20 }}
-              className="w-full max-w-4xl bg-white border border-[#E5E7EB] rounded-[32px] shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
-            >
-              <div className="p-10 pb-6">
-                <div className="flex justify-between items-start mb-8">
+                  {/* Reactants */}
                   <div>
-                    <h2 className="text-4xl font-black text-[#111827] tracking-tighter uppercase mb-2">
-                      Select Reaction
-                    </h2>
-                    <p className="text-[#6B7280] font-medium">
-                      Enter compounds like H2O, CuSO4, or KMnO4
+                    <p className="text-[7px] font-bold uppercase tracking-widest text-[#1D4ED8] mb-2.5 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-[#1D4ED8] inline-block" />
+                      বিক্রিয়ক — Reactants
                     </p>
+                    <div className="flex flex-wrap gap-3 items-center">
+                      {reaction.reactants.map((r, i) => (
+                        <React.Fragment key={r.id}>
+                          <CoefficientControl
+                            value={coeffs[r.id] || 1}
+                            onChange={(v) => setCoeff(r.id, v)}
+                            moleculeId={r.id}
+                            reaction={reaction}
+                            checkLevel={checkLevel}
+                          />
+                          {i < reaction.reactants.length - 1 && (
+                            <span className="text-2xl font-bold text-[var(--gray-200)]">+</span>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
                   </div>
-                  <div className="flex gap-4">
-                    <button
-                      onClick={() => setIsSearchOpen(false)}
-                      className="h-12 w-12 rounded-full border border-[#E5E7EB] flex items-center justify-center text-gray-400 hover:text-black transition-colors"
-                    >
-                      <X size={24} />
-                    </button>
-                  </div>
-                </div>
 
-                <div className="relative group">
-                  <div className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[#E8001D] transition-colors">
-                    <Search size={24} />
+                  {/* Arrow divider */}
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 h-px bg-[var(--border)]" />
+                    <div className="flex items-center gap-1 px-3 py-1 bg-[#FFF0F1] border border-[#FECACA] rounded-full">
+                      <ArrowRight size={13} className="text-[var(--ten-red)]" />
+                      <span className="text-[7px] font-bold uppercase tracking-widest text-[var(--ten-red)]">বিক্রিয়া</span>
+                    </div>
+                    <div className="flex-1 h-px bg-[var(--border)]" />
                   </div>
-                  <input
-                    autoFocus
-                    placeholder="Search reactions (e.g. photosynthesis, titration...)"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full h-16 pl-16 pr-6 bg-[#F9FAFB] border border-[#E5E7EB] rounded-2xl text-xl font-medium focus:outline-none focus:border-[#E8001D] focus:ring-4 focus:ring-[#E8001D]/5 transition-all"
-                  />
-                  {searchQuery && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-6 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-300"
-                    >
-                      <X size={16} />
-                    </button>
+
+                  {/* Products */}
+                  <div>
+                    <p className="text-[7px] font-bold uppercase tracking-widest text-[#166534] mb-2.5 flex items-center gap-1">
+                      <span className="w-2 h-2 rounded-full bg-[#16A34A] inline-block" />
+                      উৎপাদ — Products
+                    </p>
+                    <div className="flex flex-wrap gap-3 items-center">
+                      {reaction.products.map((p, i) => (
+                        <React.Fragment key={p.id}>
+                          <CoefficientControl
+                            value={coeffs[p.id] || 1}
+                            onChange={(v) => setCoeff(p.id, v)}
+                            moleculeId={p.id}
+                            reaction={reaction}
+                            checkLevel={checkLevel}
+                          />
+                          {i < reaction.products.length - 1 && (
+                            <span className="text-2xl font-bold text-[var(--gray-200)]">+</span>
+                          )}
+                        </React.Fragment>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Balance status */}
+                  <Tooltip side="top" content={
+                    <div>
+                      <p className="font-bold bn">ভরের নিত্যতা সূত্র</p>
+                      <p className="text-[var(--gray-400)]">বিক্রিয়ায় পরমাণু তৈরি বা ধ্বংস হয় না, শুধু পুনর্বিন্যস্ত হয়।</p>
+                    </div>
+                  }>
+                    <div className={`rounded-xl p-3.5 flex items-center gap-3 transition-all w-full ${
+                      isBalanced ? "bg-[#F0FDF4] border border-[#86EFAC]" : "bg-[var(--gray-50)] border border-[var(--border)]"
+                    }`}>
+                      {isBalanced
+                        ? <CheckCircle2 size={19} className="text-[#16A34A] shrink-0" />
+                        : <Info size={19} className="text-[var(--gray-400)] shrink-0" />
+                      }
+                      <div className="flex-1 min-w-0">
+                        <p className={`font-bold text-sm bn ${isBalanced ? "text-[#15803D]" : "text-[var(--gray-600)]"}`}>
+                          {isBalanced ? "অভিনন্দন! সমীকরণটি সমতাকৃত। · Balanced!" : "পরমাণুর সংখ্যা সমান করো। · Balance the atoms."}
+                        </p>
+                        {!isBalanced && (
+                          <p className="text-[9px] text-[var(--gray-400)] mt-0.5">বাম ও ডান পাশে প্রতিটি মৌলের পরমাণু সংখ্যা সমান হতে হবে। / Both sides must have equal atom counts.</p>
+                        )}
+                      </div>
+                      {isBalanced && <span className="text-xl">🎉</span>}
+                    </div>
+                  </Tooltip>
+
+                  {/* Hint button */}
+                  {!isBalanced && (
+                    <>
+                      <button
+                        onClick={() => setCheckLevel((l) => Math.min(l + 1, 3))}
+                        className="w-full btn-red rounded-xl py-3 text-sm gap-2 font-bold"
+                      >
+                        <Lightbulb size={14} />
+                        <span className="bn">সমাধান যাচাই করো</span>
+                        {checkLevel > 0 && (
+                          <span className="ml-auto px-2 py-0.5 bg-white/20 rounded-full text-[8px] font-black">{checkLevel}/3</span>
+                        )}
+                      </button>
+                      <CheckSolutionPanel
+                        level={checkLevel}
+                        onNextHint={() => setCheckLevel((l) => Math.min(l + 1, 3))}
+                        onReveal={() => setCheckLevel(3)}
+                        onClose={() => setCheckLevel(0)}
+                        atomCounts={atomCounts}
+                        reaction={reaction}
+                        coeffs={coeffs}
+                      />
+                    </>
                   )}
                 </div>
-              </div>
 
-              <div className="flex-1 overflow-y-auto px-10 pb-10">
-                <div className="flex items-center justify-between py-4 border-b border-[#E5E7EB] mb-6">
-                  <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                    Matching Reactions
-                  </span>
-                  <span className="px-3 py-1 bg-[#111827] text-white text-[10px] font-black rounded-lg">
-                    {filteredReactions.length} Found
-                  </span>
+                {/* Balancer Table (xl: inline) */}
+                <div className="hidden xl:block bg-white border border-[var(--border)] rounded-2xl p-4 shadow-sm">
+                  <BalancerTable
+                    reaction={reaction} coeffs={coeffs} atomCounts={atomCounts}
+                    showMolarMass={showMolarMass} onToggleMolarMass={() => setShowMolarMass((v) => !v)}
+                  />
                 </div>
 
-                <div className="space-y-3">
-                  {filteredReactions.map((r) => (
-                    <button
-                      key={r.id}
-                      onClick={() => {
-                        const idx = REACTIONS.findIndex(
-                          (rec) => rec.id === r.id,
-                        );
-                        confirmReactionChange(idx);
-                        setIsSearchOpen(false);
-                      }}
-                      className="w-full flex items-center justify-between p-6 bg-[#FFFFFF] border border-[#E5E7EB] rounded-2xl hover:border-[#E8001D] hover:bg-gray-50 group transition-all text-left"
-                    >
-                      <div className="flex flex-col gap-1">
-                        <span className="text-xl md:text-2xl font-black text-[#111827] tracking-tight">
-                          {r.name}
-                        </span>
-                        <h3 className="text-sm font-bold text-gray-500 tracking-wider font-['Inter'] mt-1">
-                          {r.formula}
-                        </h3>
-                      </div>
-                      <div className="flex items-center gap-4 opacity-0 group-hover:opacity-100 transition-all transform translate-x-4 group-hover:translate-x-0">
-                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
-                          Select Equation
-                        </span>
-                        <div className="w-10 h-10 rounded-full border border-[#E5E7EB] flex items-center justify-center text-[#E8001D]">
-                          <ArrowRight size={20} />
-                        </div>
-                      </div>
-                    </button>
-                  ))}
+                {/* Mobile accordions */}
+                {mobileAccordions}
+              </main>
+
+              {/* ── RIGHT SIDEBAR (xl+) ──────────────────────────────────── */}
+              <aside className="hidden xl:flex flex-col w-[280px] shrink-0 border-l border-[var(--border)] bg-white sticky top-[108px] h-[calc(100vh-168px)] overflow-y-auto no-scrollbar p-4 gap-5">
+
+                {/* Atom tracker */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--gray-400)] flex items-center gap-1">
+                      <Atom size={11} /> পরমাণু ট্র্যাকার · Atom Tracker
+                    </p>
+                    {isBalanced
+                      ? <span className="text-[7px] font-bold bg-[#DCFCE7] text-[#15803D] px-1.5 py-0.5 rounded-full">✓ সমতা</span>
+                      : <span className="text-[7px] font-bold bg-[#FEE2E2] text-[#DC2626] px-1.5 py-0.5 rounded-full">অসমতা</span>
+                    }
+                  </div>
+                  <AtomTracker atomCounts={atomCounts} />
                 </div>
-              </div>
-            </motion.div>
+
+                {/* Periodic cards */}
+                <div className="border-t border-[var(--border)] pt-4">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--gray-400)] mb-2">মৌলসমূহ · Elements</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {reactionElements.map((e) => (
+                      <PeriodicAtomCard key={e} symbol={e} size="md"
+                        isHighlighted={selectedElement === e}
+                        onSelect={() => setSelectedElement(e)}
+                        onDeselect={() => setSelectedElement(null)}
+                      />
+                    ))}
+                  </div>
+                </div>
+
+                {/* Molecule cards */}
+                <div className="border-t border-[var(--border)] pt-4 space-y-2">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-[var(--gray-400)] mb-2">অণু বিশ্লেষণ · Molecule Analysis</p>
+                  {reaction.reactants.map((m) => <MoleculeInfoCard key={m.id} molecule={m} coeff={coeffs[m.id] || 1} role="reactant" />)}
+                  {reaction.products.map((m)  => <MoleculeInfoCard key={m.id} molecule={m} coeff={coeffs[m.id] || 1} role="product" />)}
+                </div>
+
+              </aside>
+            </div>
           </motion.div>
         )}
-      </AnimatePresence>
 
-      {/* REACTION CHANGE CONFIRMATION POPUP */}
-      <AnimatePresence>
-        {pendingReactionIdx !== null && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[150] flex items-center justify-center p-6 bg-black/60 backdrop-blur-md"
+        {/* ================================================================ */}
+        {/* LIBRARY TAB                                                      */}
+        {/* ================================================================ */}
+        {activeTab === "library" && (
+          <motion.div key="library" initial={{ opacity: 0, x: 16 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -16 }}
+            className="px-4 py-5 max-w-[680px] mx-auto space-y-4"
           >
-            <motion.div
-              initial={{ scale: 0.9, y: 20 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.9, y: 20 }}
-              className="w-full max-w-md bg-white rounded-[32px] p-8 shadow-2xl text-center"
-            >
-              <div className="w-20 h-20 bg-orange-100 text-orange-600 rounded-full flex items-center justify-center mx-auto mb-6">
-                <RefreshCw size={40} className="animate-spin-slow" />
+            <div className="flex items-center gap-3">
+              <button onClick={() => setActiveTab("lab")}
+                className="p-2 rounded-xl hover:bg-[var(--gray-100)] transition-colors shrink-0"
+              ><ChevronLeft size={17} /></button>
+              <div>
+                <h2 className="text-base font-bold bn text-[var(--ten-ink)]">বিক্রিয়া লাইব্রেরি</h2>
+                <p className="text-[9px] text-[var(--gray-400)] font-bold">{filtered.length} টি বিক্রিয়া · {solvedReactions.size} সমাধান</p>
               </div>
-              <h3 className="text-2xl font-black text-[#111827] mb-2 leading-tight">
-                Reset Simulation?
-                <br />
-                <span className="text-[20px] text-[#E8001D]">
-                  সিমুলেশন রিসেট করবেন?
-                </span>
-              </h3>
-              <p className="text-[#6B7280] font-medium mb-1 mt-4">
-                Are you sure you want to change the reaction? Your current
-                progress will be reset.
-              </p>
-              <p className="text-[#6B7280] font-medium mb-8">
-                আপনি কি বিক্রিয়াটি পরিবর্তন করতে চান? আপনার বর্তমান কাজগুলো
-                রিসেট হয়ে যাবে।
-              </p>
+            </div>
 
-              <div className="flex gap-4">
-                <button
-                  onClick={() => setPendingReactionIdx(null)}
-                  className="flex-1 h-14 rounded-2xl border border-[#E5E7EB] text-gray-500 font-bold hover:bg-gray-50 hover:text-gray-700 transition-all font-['Inter']"
+            <TenInput placeholder="বিক্রিয়া বা ফর্মুলা দিয়ে খুঁজুন..." className="bn"
+              value={search} onChange={(e) => setSearch(e.target.value)} icon={<Search size={14} />}
+            />
+
+            {/* Segment filter: SSC / HSC / All */}
+            <div className="flex gap-1.5">
+              {(["All", "SSC", "HSC"] as const).map((seg) => (
+                <button key={seg} onClick={() => setSegmentFilter(seg)}
+                  className={`flex-1 py-2 rounded-xl text-xs font-bold transition-all border ${
+                    segmentFilter === seg
+                      ? seg === "SSC" ? "bg-[#1D4ED8] text-white border-[#1D4ED8]"
+                        : seg === "HSC" ? "bg-[var(--ten-red)] text-white border-[var(--ten-red-dark)]"
+                        : "bg-[var(--ten-ink)] text-white border-[var(--ten-ink)]"
+                      : "bg-white border-[var(--border)] text-[var(--gray-500)]"
+                  }`}
                 >
-                  Cancel • বাতিল
+                  {seg === "All" ? (lang === "bn" ? "সব" : "All") : seg}
                 </button>
-                <button
-                  onClick={() => {
-                    setCurrentReactionIdx(pendingReactionIdx);
-                    setPendingReactionIdx(null);
-                    setIsSearchOpen(false);
-                  }}
-                  className="flex-1 h-14 rounded-2xl bg-[#E8001D] text-white font-bold hover:bg-[#be0018] shadow-lg shadow-red-500/20 transition-all font-['Inter']"
-                >
-                  Confirm • নিশ্চিত
-                </button>
-              </div>
-            </motion.div>
+              ))}
+              {/* Solved/unsolved toggle */}
+              <button onClick={() => setShowOnlyUnsolved((v) => !v)}
+                className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                  showOnlyUnsolved
+                    ? "bg-[#15803D] text-white border-[#15803D]"
+                    : "bg-white border-[var(--border)] text-[var(--gray-500)]"
+                }`}
+              >
+                {lang === "bn" ? "অসমাধান" : "Unsolved"}
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              {filtered.map((r) => {
+                const solved = solvedReactions.has(r.id);
+                const segColor = r.segment === "SSC"
+                  ? "bg-[#DBEAFE] text-[#1D4ED8] border-[#BFDBFE]"
+                  : r.segment === "HSC"
+                  ? "bg-[#FEE2E2] text-[#DC2626] border-[#FECACA]"
+                  : "bg-[#F5F3FF] text-[#6D28D9] border-[#DDD6FE]";
+                return (
+                  <div key={r.id}
+                    onClick={() => { setCurrentIdx(REACTIONS.indexOf(r)); setActiveTab("lab"); }}
+                    className={`subject-tile cursor-pointer ${reaction.id === r.id ? "is-today" : ""}`}
+                  >
+                    <div className="date-chip">
+                      <div className="d-day">{r.formula.split(" ")[0].slice(0, 4)}</div>
+                      <div className="d-mon">CHEM</div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-bold bn text-[var(--ten-ink)] truncate">
+                        {lang === "bn" ? r.name : r.nameEn}
+                      </div>
+                      <div className="flex items-center gap-1.5 mt-0.5">
+                        <span className={`text-[7px] font-bold px-1.5 py-0.5 rounded-full border ${segColor}`}>{r.segment}</span>
+                        <span className="text-[8px] text-[var(--gray-400)] font-mono truncate">{r.formula}</span>
+                      </div>
+                    </div>
+                    {solved && <span className="text-[8px] font-bold text-[#15803D] bg-[#DCFCE7] border border-[#86EFAC] px-2 py-0.5 rounded-full shrink-0 flex items-center gap-1"><CheckCircle2 size={10} /> {lang === "bn" ? "সমাধান" : "Solved"}</span>}
+                    {reaction.id === r.id && !solved && <span className="text-[8px] font-bold text-[#1D4ED8] bg-[#DBEAFE] border border-[#BFDBFE] px-2 py-0.5 rounded-full shrink-0 bn">{lang === "bn" ? "সক্রিয়" : "Active"}</span>}
+                    <ChevronRight size={14} className="text-[var(--gray-300)] shrink-0" />
+                  </div>
+                );
+              })}
+              {filtered.length === 0 && (
+                <div className="text-center py-12 text-[var(--gray-400)]">
+                  <Target size={32} className="mx-auto mb-3 opacity-40" />
+                  <p className="text-sm bn font-bold">{lang === "bn" ? "কোনো বিক্রিয়া পাওয়া যায়নি।" : "No reactions found."}</p>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
+
+        {/* ================================================================ */}
+        {/* HOME TAB                                                         */}
+        {/* ================================================================ */}
+        {activeTab === "home" && (
+          <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="px-4 py-12 max-w-[520px] mx-auto flex flex-col items-center text-center gap-6"
+          >
+            <div className="w-16 h-16 rounded-2xl bg-[var(--ten-red)] flex items-center justify-center text-white font-black text-3xl italic shadow-lg">10</div>
+            <div>
+              <h2 className="text-2xl font-bold bn text-[var(--ten-ink)] mb-2">স্বাগতম!</h2>
+              <p className="text-sm text-[var(--gray-500)] bn leading-relaxed">ইন্টারেক্টিভ রসায়ন ল্যাবে রাসায়নিক বিক্রিয়া সমতাকরণ শিখুন।</p>
+            </div>
+            {/* Progress */}
+            <div className="w-full max-w-[360px] bg-white border border-[var(--border)] rounded-2xl p-4 shadow-sm">
+              <div className="flex justify-between text-[10px] font-bold text-[var(--gray-500)] mb-2">
+                <span className="bn">অগ্রগতি</span>
+                <span>{solvedReactions.size} / {REACTIONS.length}</span>
+              </div>
+              <div className="h-2 bg-[var(--gray-100)] rounded-full overflow-hidden">
+                <div className="h-full bg-[var(--ten-red)] rounded-full transition-all"
+                  style={{ width: `${(solvedReactions.size / REACTIONS.length) * 100}%` }} />
+              </div>
+              {solvedReactions.size === REACTIONS.length && (
+                <p className="text-xs font-bold text-[#15803D] bn mt-2 text-center">🏆 সব বিক্রিয়া সমাধান হয়েছে!</p>
+              )}
+            </div>
+            <div className="grid grid-cols-3 gap-3 w-full max-w-[360px]">
+              {[
+                { label: "বিক্রিয়া",  value: REACTIONS.length,         color: "text-[var(--ten-red)]" },
+                { label: "সমাধান",    value: solvedReactions.size,      color: "text-[#16A34A]" },
+                { label: "মৌল",      value: Object.keys(ELEMENTS).length, color: "text-[#1D4ED8]" },
+              ].map((s) => (
+                <div key={s.label} className="bg-white border border-[var(--border)] rounded-2xl p-4 text-center shadow-sm">
+                  <p className={`text-2xl font-black ${s.color}`}>{s.value}</p>
+                  <p className="text-[8px] font-bold bn text-[var(--gray-400)] uppercase tracking-widest mt-1">{s.label}</p>
+                </div>
+              ))}
+            </div>
+            <button onClick={() => setActiveTab("lab")} className="btn-red px-8 py-3 rounded-xl text-sm gap-2">
+              <FlaskConical size={14} /> ল্যাবে যাও
+            </button>
+          </motion.div>
+        )}
+
+        {/* ================================================================ */}
+        {/* PROFILE TAB                                                      */}
+        {/* ================================================================ */}
+        {activeTab === "profile" && (
+          <motion.div key="profile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="px-4 py-10 max-w-[400px] mx-auto flex flex-col items-center gap-5 text-center"
+          >
+            <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-[var(--ten-red)] shadow-lg">
+              <img src="https://ui-avatars.com/api/?name=Student&background=E8001D&color=fff&size=80" alt="Profile" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold bn text-[var(--ten-ink)]">শিক্ষার্থী</h2>
+              <p className="text-xs text-[var(--gray-400)] mt-1">student@10minuteschool.com</p>
+            </div>
+            {solvedReactions.size > 0 && (
+              <div className="flex items-center gap-2 px-4 py-2 bg-[#DCFCE7] border border-[#86EFAC] rounded-full">
+                <Trophy size={14} className="text-[#15803D]" />
+                <span className="text-xs font-bold text-[#15803D] bn">{solvedReactions.size}টি বিক্রিয়া সমাধান করেছ!</span>
+              </div>
+            )}
+            <div className="w-full grid grid-cols-3 gap-3">
+              {[
+                { label: "বিক্রিয়া",  value: REACTIONS.length },
+                { label: "সমাধান",    value: solvedReactions.size },
+                { label: "স্তর",      value: solvedReactions.size >= 5 ? "২" : "১" },
+              ].map((s) => (
+                <div key={s.label} className="bg-white border border-[var(--border)] rounded-xl p-3 text-center shadow-sm">
+                  <p className="text-xl font-black text-[var(--ten-red)]">{s.value}</p>
+                  <p className="text-[8px] font-bold bn text-[var(--gray-400)] uppercase tracking-widest mt-0.5">{s.label}</p>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
       </AnimatePresence>
+
+      {/* Completion Modal */}
+      <AnimatePresence>
+        {showCompletionModal && (
+          <CompletionModal
+            reaction={reaction}
+            solvedCount={solvedReactions.size}
+            totalCount={REACTIONS.length}
+            onNext={() => { setShowCompletionModal(false); nextReaction(); }}
+            onLibrary={() => { setShowCompletionModal(false); setActiveTab("library"); }}
+            onClose={() => setShowCompletionModal(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} lang={lang} />
     </div>
   );
 }
