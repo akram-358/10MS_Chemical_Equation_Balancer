@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(gh repo *)"
+      "Bash(gh repo *)",
+      "Read(//Users/10ms/.ssh/**)",
+      "Bash(ssh-keygen -t ed25519 -C \"cm.ops.10ms@gmail.com\" -f ~/.ssh/id_ed25519 -N \"\")"
     ]
   }
 }
