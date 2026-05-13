@@ -18,3 +18,4 @@ View your app in AI Studio: https://ai.studio/apps/a7f5830e-a38c-4ba6-917f-dcced
 2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
 3. Run the app:
    `npm run dev`
+# 10MS_Chemical_Equation_Balancer
