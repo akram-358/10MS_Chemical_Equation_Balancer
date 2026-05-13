@@ -1,24 +1,52 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# Chemical Equation Balancer
 
-# Run and deploy your AI Studio app
+A modern, interactive web application for balancing chemical equations and visualizing molecules in 3D. Designed with a premium aesthetic and educational focus.
 
-This contains everything you need to run your app locally.
+## 🚀 Features
 
-View your app in AI Studio: https://ai.studio/apps/a7f5830e-a38c-4ba6-917f-dccedbdcd5ab
+- **Equation Balancing**: Real-time balancing of complex chemical equations.
+- **3D Molecule Visualization**: interactive 3D models of molecules using Three.js.
+- **Interactive Simulations**: Visual representation of reaction components.
+- **Atom Tracker**: Detailed breakdown of atom counts on both sides of the equation.
+- **Bilingual Support**: Full support for both English and Bangla.
+- **Periodic Table Integration**: Quick access to element data.
+- **Mobile First Design**: Fully responsive and optimized for mobile devices.
 
-## Run Locally
+## 🛠️ Tech Stack
 
-**Prerequisites:**  Node.js
+- **Framework**: React 19
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS v4 & Framer Motion
+- **3D Rendering**: React Three Fiber & Three.js
+- **Icons**: Lucide React
 
+## 📦 Installation
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
-# 10MS_Chemical_Equation_Balancer
-# 10MS_Chemical_Equation_Balancer
-# 10MS_Chemical_Equation_Balancer
-# 10MS_Chemical_Equation_Balancer
+1. **Clone the repository**:
+   ```bash
+   git clone https://github.com/akram-358/10MS_Chemical_Equation_Balancer.git
+   cd 10MS_Chemical_Equation_Balancer
+   ```
+
+2. **Install dependencies**:
+   ```bash
+   npm install
+   ```
+
+3. **Run the development server**:
+   ```bash
+   npm run dev
+   ```
+
+4. **Build for production**:
+   ```bash
+   npm run build
+   ```
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🤝 Acknowledgments
+
+Built for the **10MS Engineering** team.

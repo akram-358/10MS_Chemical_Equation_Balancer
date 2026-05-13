@@ -61,8 +61,39 @@ const CameraController = ({ zoom, controlsRef }: { zoom: number; controlsRef: Re
 // ─────────────────────────────────────────────────────────────────────────────
 const Tooltip = ({
   content, children, side = "top",
-}: { content: React.ReactNode; children: React.ReactNode; side?: "top" | "bottom" }) => {
+}: { content: React.ReactNode; children: React.ReactNode; side?: "top" | "bottom" | "left" | "right" }) => {
   const [visible, setVisible] = useState(false);
+
+  const getPositionStyles = () => {
+    switch (side) {
+      case "top":
+        return { bottom: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)" };
+      case "bottom":
+        return { top: "calc(100% + 6px)", left: "50%", transform: "translateX(-50%)" };
+      case "left":
+        return { right: "calc(100% + 6px)", top: "50%", transform: "translateY(-50%)" };
+      case "right":
+        return { left: "calc(100% + 6px)", top: "50%", transform: "translateY(-50%)" };
+      default:
+        return {};
+    }
+  };
+
+  const getAnimationProps = () => {
+    switch (side) {
+      case "top":
+        return { y: 4 };
+      case "bottom":
+        return { y: -4 };
+      case "left":
+        return { x: 4 };
+      case "right":
+        return { x: -4 };
+      default:
+        return {};
+    }
+  };
+
   return (
     <div className="relative inline-flex" style={{ isolation: "isolate" }}
       onMouseEnter={() => setVisible(true)}
@@ -73,19 +104,16 @@ const Tooltip = ({
       <AnimatePresence>
         {visible && (
           <motion.div
-            initial={{ opacity: 0, scale: 0.9, y: side === "top" ? 4 : -4 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9, y: side === "top" ? 4 : -4 }}
+            initial={{ opacity: 0, scale: 0.9, ...getAnimationProps() }}
+            animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9, ...getAnimationProps() }}
             transition={{ duration: 0.15 }}
             className="tooltip-card"
             style={{
               position: "absolute",
               zIndex: 500,
-              bottom: side === "top" ? "calc(100% + 6px)" : "auto",
-              top: side === "bottom" ? "calc(100% + 6px)" : "auto",
-              left: "50%",
-              transform: "translateX(-50%)",
               pointerEvents: "none",
+              ...getPositionStyles(),
             }}
           >
             {content}
