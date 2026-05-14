@@ -95,7 +95,7 @@ const Tooltip = ({
   };
 
   return (
-    <div className="relative inline-flex" style={{ isolation: "isolate" }}
+    <div className="relative inline-flex isolate"
       onMouseEnter={() => setVisible(true)}
       onMouseLeave={() => setVisible(false)}
       onClick={() => setVisible((v) => !v)}
@@ -108,13 +108,8 @@ const Tooltip = ({
             animate={{ opacity: 1, scale: 1, x: 0, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, ...getAnimationProps() }}
             transition={{ duration: 0.15 }}
-            className="tooltip-card"
-            style={{
-              position: "absolute",
-              zIndex: 500,
-              pointerEvents: "none",
-              ...getPositionStyles(),
-            }}
+            className="tooltip-card absolute z-[500] pointer-events-none"
+            style={getPositionStyles() as React.CSSProperties}
           >
             {content}
           </motion.div>
@@ -142,29 +137,23 @@ const PeriodicAtomCard = ({
   return (
     <Tooltip side="bottom" content={
       <div>
-        <p className="font-bold" style={{ color: el.color }}>{el.nameBn} / {el.name}</p>
+        <p className={`font-bold dynamic-color [--dynamic-color:${el.color}]`}>{el.nameBn} / {el.name}</p>
         <p className="text-[var(--gray-500)]">#{el.number} · {el.mass} g/mol</p>
         <p className="text-[var(--gray-400)]">{el.category}</p>
       </div>
     }>
       <div
-        className={`${s.card} relative rounded-xl border-2 flex flex-col items-center justify-center pt-1 pb-1.5 px-0.5 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5`}
-        style={{
-          borderColor: el.color,
-          background: el.bg,
-          boxShadow: isHighlighted ? `0 0 0 3px ${el.color}55, 0 0 16px ${el.color}44` : undefined,
-          transform: isHighlighted ? "scale(1.08) translateY(-2px)" : undefined,
-        }}
+        className={`${s.card} relative rounded-xl border-2 flex flex-col items-center justify-center pt-1 pb-1.5 px-0.5 cursor-pointer transition-all hover:shadow-md hover:-translate-y-0.5 dynamic-border dynamic-bg [--dynamic-border:${el.color}] [--dynamic-bg:${el.bg}] ${isHighlighted ? `[box-shadow:0_0_0_3px_${el.color}55,0_0_16px_${el.color}44] [transform:scale(1.08)_translateY(-2px)]` : ""}`}
         onMouseEnter={onSelect}
         onMouseLeave={onDeselect}
       >
-        <span className={`absolute top-0.5 left-1 ${s.num} font-bold opacity-60`} style={{ color: el.color }}>{el.number}</span>
+        <span className={`absolute top-0.5 left-1 ${s.num} font-bold opacity-60 dynamic-color [--dynamic-color:${el.color}]`}>{el.number}</span>
         {count !== undefined && (
-          <span className={`absolute top-0.5 right-1 ${s.num} font-black`} style={{ color: el.color }}>×{count}</span>
+          <span className={`absolute top-0.5 right-1 ${s.num} font-black dynamic-color [--dynamic-color:${el.color}]`}>×{count}</span>
         )}
-        <span className={`${s.sym} font-black leading-none mt-2`} style={{ color: el.color }}>{symbol}</span>
-        <span className={`${s.name} font-semibold text-center leading-tight mt-0.5 opacity-70`} style={{ color: el.color }}>{el.nameBn}</span>
-        <span className={`${s.mass} font-medium opacity-50 mt-0.5`} style={{ color: el.color }}>{el.mass.toFixed(el.mass < 10 ? 3 : 2)}</span>
+        <span className={`${s.sym} font-black leading-none mt-2 dynamic-color [--dynamic-color:${el.color}]`}>{symbol}</span>
+        <span className={`${s.name} font-semibold text-center leading-tight mt-0.5 opacity-70 dynamic-color [--dynamic-color:${el.color}]`}>{el.nameBn}</span>
+        <span className={`${s.mass} font-medium opacity-50 mt-0.5 dynamic-color [--dynamic-color:${el.color}]`}>{el.mass.toFixed(el.mass < 10 ? 3 : 2)}</span>
       </div>
     </Tooltip>
   );
@@ -192,7 +181,7 @@ const AtomTracker = ({ atomCounts }: { atomCounts: { left: Record<string, number
         return (
           <Tooltip key={e} side="bottom" content={
             <div>
-              <p className="font-bold" style={{ color: el.color }}>{el.nameBn} ({e})</p>
+              <p className={`font-bold dynamic-color [--dynamic-color:${el.color}]`}>{el.nameBn} ({e})</p>
               <p>বাম (Reactants): <strong>{L}</strong></p>
               <p>ডান (Products): <strong>{R}</strong></p>
               <p className={ok ? "text-[#15803D] font-bold" : "text-[#DC2626] font-bold"}>
@@ -202,9 +191,8 @@ const AtomTracker = ({ atomCounts }: { atomCounts: { left: Record<string, number
           }>
             <div className={`rounded-xl p-2.5 border transition-all ${ok ? "bg-[#F0FDF4] border-[#86EFAC]" : "bg-[#FFF8F8] border-[#FECACA]"}`}>
               <div className="flex items-center gap-2 mb-1.5">
-                <div className="w-6 h-6 rounded-md flex items-center justify-center text-white text-[9px] font-black shrink-0"
-                  style={{ background: el.color }}>{e}</div>
-                <span className="text-[9px] font-bold flex-1" style={{ color: el.color }}>{el.nameBn}</span>
+                <div className={`w-6 h-6 rounded-md flex items-center justify-center text-white text-[9px] font-black shrink-0 dynamic-bg [--dynamic-bg:${el.color}]`}>{e}</div>
+                <span className={`text-[9px] font-bold flex-1 dynamic-color [--dynamic-color:${el.color}]`}>{el.nameBn}</span>
                 <span className={`text-[8px] font-black px-1.5 py-0.5 rounded-full ${ok ? "bg-[#DCFCE7] text-[#15803D]" : "bg-[#FEE2E2] text-[#B91C1C]"}`}>
                   {ok ? "✓" : `${L}≠${R}`}
                 </span>
@@ -214,8 +202,7 @@ const AtomTracker = ({ atomCounts }: { atomCounts: { left: Record<string, number
                   <div key={label as string} className="flex items-center gap-1.5">
                     <span className="text-[7px] font-bold text-[var(--gray-400)] w-8 shrink-0 text-right">{label} ({val})</span>
                     <div className="flex-1 h-3 bg-[var(--gray-100)] rounded-full overflow-hidden">
-                      <motion.div className="h-full rounded-full"
-                        style={{ background: clr as string }}
+                      <motion.div className={`h-full rounded-full dynamic-bg [--dynamic-bg:${clr as string}]`}
                         animate={{ width: `${((val as number) / maxCount) * 100}%` }}
                         transition={{ type: "spring", stiffness: 300, damping: 30 }}
                       />
@@ -273,8 +260,7 @@ const BalancerTable = ({
               {elements.map((e) => {
                 const el = getEl(e);
                 return (
-                  <th key={e} className="text-center"
-                    style={{ background: el.bg, color: el.color }}>
+                  <th key={e} className={`text-center dynamic-bg dynamic-color [--dynamic-bg:${el.bg}] [--dynamic-color:${el.color}]`}>
                     {e}
                   </th>
                 );
@@ -302,8 +288,8 @@ const BalancerTable = ({
                     const cnt = (m.atoms[e] || 0) * c;
                     const el = getEl(e);
                     return (
-                      <td key={e} style={{ color: cnt > 0 ? el.color : undefined }}
-                        className={cnt > 0 ? "font-bold" : "text-[var(--gray-300)]"}>
+                      <td key={e}
+                        className={`${cnt > 0 ? "font-bold dynamic-color" : "text-[var(--gray-300)]"} ${cnt > 0 ? `[--dynamic-color:${el.color}]` : ""}`}>
                         {cnt > 0 ? cnt : "—"}
                       </td>
                     );
@@ -345,8 +331,8 @@ const BalancerTable = ({
                     const cnt = (m.atoms[e] || 0) * c;
                     const el = getEl(e);
                     return (
-                      <td key={e} style={{ color: cnt > 0 ? el.color : undefined }}
-                        className={cnt > 0 ? "font-bold" : "text-[var(--gray-300)]"}>
+                      <td key={e}
+                        className={`${cnt > 0 ? "font-bold dynamic-color" : "text-[var(--gray-300)]"} ${cnt > 0 ? `[--dynamic-color:${el.color}]` : ""}`}>
                         {cnt > 0 ? cnt : "—"}
                       </td>
                     );
@@ -501,14 +487,13 @@ const TutorialDropdownPanel = ({
         <p className="text-sm font-bold bn text-[var(--ten-ink)]">কীভাবে ব্যবহার করবে?</p>
         <p className="text-[9px] text-[var(--gray-400)] font-bold mt-0.5">{stepsSeen.size}/4 ধাপ সম্পন্ন</p>
       </div>
-      <button onClick={onClose} className="p-1 rounded-full hover:bg-[var(--gray-100)] transition-all">
+      <button onClick={onClose} className="p-1 rounded-full hover:bg-[var(--gray-100)] transition-all" title="বন্ধ করুন · Close">
         <X size={14} className="text-[var(--gray-500)]" />
       </button>
     </div>
     {/* Progress bar */}
     <div className="h-1 bg-[var(--gray-100)]">
-      <div className="h-full bg-[var(--ten-red)] transition-all"
-        style={{ width: `${(stepsSeen.size / 4) * 100}%` }} />
+      <div className={`h-full bg-[var(--ten-red)] transition-all progress-bar-fill [--progress:${(stepsSeen.size / 4) * 100}%]`} />
     </div>
     <div className="px-4 py-2 space-y-0">
       {TUTORIAL_STEPS.map((s, i) => (
@@ -565,23 +550,22 @@ const Navbar = ({
   return (
     <nav className="fixed top-0 left-0 right-0 h-[60px] bg-white/95 backdrop-blur-[40px] border-b border-[var(--border)] z-[200] px-4 lg:px-8 flex items-center justify-between shadow-sm">
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 bg-[var(--ten-red)] rounded-xl flex items-center justify-center text-white font-black text-lg italic shrink-0 shadow-sm">10</div>
+        <img src="https://cdn.10minuteschool.com/images/svg/Origin%20Labs%20Black.svg" alt="10MS Logo" className="h-9 w-auto object-contain shrink-0" />
         <div>
           <h1 className="text-[14px] font-bold leading-none text-[var(--ten-ink)] bn">রসায়ন ল্যাব</h1>
           <p className="text-[8px] font-bold text-[var(--ten-red)] uppercase tracking-widest mt-0.5">Chemical Equation Balancer</p>
         </div>
       </div>
       <div className="flex items-center gap-1 relative" ref={dropdownRef}>
-        <button onClick={onSearchClick} className="p-2 rounded-xl text-[var(--gray-500)] hover:text-[var(--ten-red)] hover:bg-[#FFF0F1] transition-all">
+        <button onClick={onSearchClick} className="p-2 rounded-xl text-[var(--gray-500)] hover:text-[var(--ten-red)] hover:bg-[#FFF0F1] transition-all" title="খুঁজুন · Search">
           <Search size={17} />
         </button>
         {/* Language toggle */}
         <button onClick={onLangToggle}
           className="px-2.5 py-1.5 rounded-xl text-[10px] font-black border transition-all hover:border-[var(--ten-red)] hover:text-[var(--ten-red)]"
-          style={{ borderColor: "var(--border)", color: "var(--fg-2)" }}
           title="Toggle language"
         >
-          {lang === "bn" ? "EN" : "বাং"}
+          {lang === "bn" ? "English" : "বাংলা"}
         </button>
         {/* Tutorial button */}
         <button onClick={onTutorialToggle}
@@ -602,7 +586,7 @@ const Navbar = ({
               animate={{ opacity: 1, y: 0,  scale: 1 }}
               exit={{    opacity: 0, y: -8, scale: 0.97 }}
               transition={{ duration: 0.18 }}
-              style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, zIndex: 250 }}
+              className="tutorial-dropdown-container"
             >
               <TutorialDropdownPanel
                 stepsSeen={tutorialStepsSeen}
@@ -707,12 +691,11 @@ const CoefficientControl = ({
           return (
             <Tooltip key={a} side="top" content={
               <div>
-                <span className="font-bold" style={{ color: el.color }}>{el.nameBn} ({a})</span>
+                <span className={`font-bold dynamic-color [--dynamic-color:${el.color}]`}>{el.nameBn} ({a})</span>
                 <p className="text-[var(--gray-400)]">#{el.number} · {el.mass} g/mol</p>
               </div>
             }>
-              <div className="w-5 h-5 rounded-md flex items-center justify-center text-white text-[8px] font-black shadow-sm cursor-help"
-                style={{ background: el.color }}
+              <div className={`w-5 h-5 rounded-md flex items-center justify-center text-white text-[8px] font-black shadow-sm cursor-help dynamic-bg [--dynamic-bg:${el.color}]`}
               >{a}</div>
             </Tooltip>
           );
@@ -729,7 +712,7 @@ const CoefficientControl = ({
       {/* Counter */}
       <div className="flex items-center gap-1.5">
         <Tooltip side="top" content={<span>সহগ কমাও</span>}>
-          <button className="coeff-btn-minus" onClick={() => onChange(Math.max(1, value - 1))}>
+          <button className="coeff-btn-minus" onClick={() => onChange(Math.max(1, value - 1))} title="সহগ কমাও · Decrease coefficient">
             <Minus size={10} />
           </button>
         </Tooltip>
@@ -739,7 +722,7 @@ const CoefficientControl = ({
           {value}
         </div>
         <Tooltip side="top" content={<span>সহগ বাড়াও</span>}>
-          <button className="coeff-btn-plus" onClick={() => onChange(value + 1)}>
+          <button className="coeff-btn-plus" onClick={() => onChange(value + 1)} title="সহগ বাড়াও · Increase coefficient">
             <Plus size={10} />
           </button>
         </Tooltip>
@@ -822,7 +805,7 @@ const CheckSolutionPanel = ({
                       const el = getEl(e);
                       return (
                         <span key={e} className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-bold bg-white/60 border border-current">
-                          <span className="w-4 h-4 rounded flex items-center justify-center text-white text-[7px] font-black" style={{ background: el.color }}>{e}</span>
+                          <span className={`w-4 h-4 rounded flex items-center justify-center text-white text-[7px] font-black dynamic-bg [--dynamic-bg:${el.color}]`}>{e}</span>
                           {atomCounts.left[e]||0} ≠ {atomCounts.right[e]||0}
                         </span>
                       );
@@ -1060,17 +1043,17 @@ export default function App() {
       {/* Zoom overlay */}
       <div className="absolute top-2 right-2 flex flex-col gap-1 z-10 pointer-events-auto">
         <Tooltip side="left" content="Zoom In (+)">
-          <button onClick={() => setZoom3D((z) => Math.max(3, z - 1.5))} className="zoom-overlay-btn">
+          <button onClick={() => setZoom3D((z) => Math.max(3, z - 1.5))} className="zoom-overlay-btn" title="জুম ইন · Zoom In">
             <ZoomIn size={11} />
           </button>
         </Tooltip>
         <Tooltip side="left" content="Zoom Out (−)">
-          <button onClick={() => setZoom3D((z) => Math.min(20, z + 1.5))} className="zoom-overlay-btn">
+          <button onClick={() => setZoom3D((z) => Math.min(20, z + 1.5))} className="zoom-overlay-btn" title="জুম আউট · Zoom Out">
             <ZoomOut size={11} />
           </button>
         </Tooltip>
         <Tooltip side="left" content="Reset View">
-          <button onClick={handleResetZoom} className="zoom-overlay-btn">
+          <button onClick={handleResetZoom} className="zoom-overlay-btn" title="ভিউ রিসেট · Reset View">
             <RefreshCw size={10} />
           </button>
         </Tooltip>
@@ -1112,10 +1095,9 @@ export default function App() {
   const atomHoverTooltip = hoveredAtom && (() => {
     const el = getEl(hoveredAtom.symbol);
     return (
-      <div className="tooltip-card"
-        style={{ position: "fixed", left: hoveredAtom.x + 12, top: hoveredAtom.y - 40, zIndex: 600, pointerEvents: "none" }}
+      <div className={`tooltip-card fixed z-[600] pointer-events-none [--left:${hoveredAtom.x + 12}px] [--top:${hoveredAtom.y - 40}px] [left:var(--left)] [top:var(--top)]`}
       >
-        <p className="font-black" style={{ color: el.color }}>{hoveredAtom.symbol} · #{el.number}</p>
+        <p className={`font-black dynamic-color [--dynamic-color:${el.color}]`}>{hoveredAtom.symbol} · #{el.number}</p>
         <p className="font-bold bn text-[var(--ten-ink)]">{el.nameBn}</p>
         <p className="text-[var(--gray-400)]">{el.mass} g/mol · {el.category}</p>
       </div>
@@ -1264,6 +1246,7 @@ export default function App() {
                 <div className="flex items-center gap-2 bg-white border border-[var(--border)] rounded-2xl px-3 py-2 shadow-sm">
                   <button onClick={prevReaction}
                     className="p-1.5 rounded-xl border border-[var(--border)] hover:border-[var(--ten-red)] hover:text-[var(--ten-red)] transition-all bg-white shrink-0"
+                    title="পূর্ববর্তী · Previous"
                   ><ChevronLeft size={15} /></button>
                   <div className="flex-1 min-w-0 text-center">
                     <p className="text-[7px] font-bold uppercase tracking-widest text-[var(--gray-400)]">{currentIdx + 1} / {REACTIONS.length}</p>
@@ -1271,6 +1254,7 @@ export default function App() {
                   </div>
                   <button onClick={nextReaction}
                     className="p-1.5 rounded-xl border border-[var(--border)] hover:border-[var(--ten-red)] hover:text-[var(--ten-red)] transition-all bg-white shrink-0"
+                    title="পরবর্তী · Next"
                   ><ChevronRight size={15} /></button>
                 </div>
 
@@ -1300,11 +1284,13 @@ export default function App() {
                         <Tooltip side="bottom" content="বিক্রিয়ার বিবরণ">
                           <button onClick={() => setShowSummary((v) => !v)}
                             className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all"
+                            title="বিস্তারিত · Details"
                           ><Info size={15} /></button>
                         </Tooltip>
                         <Tooltip side="bottom" content="রিসেট">
                           <button onClick={handleReset}
                             className="p-2 bg-white/10 hover:bg-white/20 rounded-xl text-white transition-all"
+                            title="রিসেট · Reset"
                           ><RotateCw size={15} /></button>
                         </Tooltip>
                       </div>
@@ -1365,12 +1351,7 @@ export default function App() {
                         const isHighlit = selectedElement === e;
                         return (
                           <div key={e}
-                            className="flex items-center gap-1 px-2 py-1 rounded-full border text-white cursor-pointer transition-all"
-                            style={{
-                              borderColor: isHighlit ? el.color : "rgba(255,255,255,0.15)",
-                              background: isHighlit ? `${el.color}55` : "rgba(255,255,255,0.1)",
-                              boxShadow: isHighlit ? `0 0 10px ${el.color}88` : undefined,
-                            }}
+                            className={`flex items-center gap-1 px-2 py-1 rounded-full border text-white cursor-pointer transition-all dynamic-border dynamic-bg [--dynamic-border:${isHighlit ? el.color : "rgba(255,255,255,0.15)"}] [--dynamic-bg:${isHighlit ? `${el.color}55` : "rgba(255,255,255,0.1)"}] ${isHighlit ? `[box-shadow:0_0_10px_${el.color}88]` : ""}`}
                             onMouseEnter={() => setSelectedElement(e)}
                             onMouseLeave={() => setSelectedElement(null)}
                           >
@@ -1573,6 +1554,7 @@ export default function App() {
             <div className="flex items-center gap-3">
               <button onClick={() => setActiveTab("lab")}
                 className="p-2 rounded-xl hover:bg-[var(--gray-100)] transition-colors shrink-0"
+                title="ল্যাবে ফিরে যান · Back to Lab"
               ><ChevronLeft size={17} /></button>
               <div>
                 <h2 className="text-base font-bold bn text-[var(--ten-ink)]">বিক্রিয়া লাইব্রেরি</h2>
@@ -1660,7 +1642,7 @@ export default function App() {
           <motion.div key="home" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="px-4 py-12 max-w-[520px] mx-auto flex flex-col items-center text-center gap-6"
           >
-            <div className="w-16 h-16 rounded-2xl bg-[var(--ten-red)] flex items-center justify-center text-white font-black text-3xl italic shadow-lg">10</div>
+            <img src="https://cdn.10minuteschool.com/images/svg/Origin%20Labs%20Black.svg" alt="10MS Logo" className="h-16 w-auto object-contain" />
             <div>
               <h2 className="text-2xl font-bold bn text-[var(--ten-ink)] mb-2">স্বাগতম!</h2>
               <p className="text-sm text-[var(--gray-500)] bn leading-relaxed">ইন্টারেক্টিভ রসায়ন ল্যাবে রাসায়নিক বিক্রিয়া সমতাকরণ শিখুন।</p>
@@ -1672,8 +1654,7 @@ export default function App() {
                 <span>{solvedReactions.size} / {REACTIONS.length}</span>
               </div>
               <div className="h-2 bg-[var(--gray-100)] rounded-full overflow-hidden">
-                <div className="h-full bg-[var(--ten-red)] rounded-full transition-all"
-                  style={{ width: `${(solvedReactions.size / REACTIONS.length) * 100}%` }} />
+                <div className={`h-full bg-[var(--ten-red)] rounded-full transition-all progress-bar-fill [--progress:${(solvedReactions.size / REACTIONS.length) * 100}%]`} />
               </div>
               {solvedReactions.size === REACTIONS.length && (
                 <p className="text-xs font-bold text-[#15803D] bn mt-2 text-center">🏆 সব বিক্রিয়া সমাধান হয়েছে!</p>

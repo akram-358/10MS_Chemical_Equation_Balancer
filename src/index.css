@@ -430,7 +430,12 @@
 
 .no-scrollbar {
   -ms-overflow-style: none;
-  scrollbar-width: none;
+  @supports (scrollbar-width: none) {
+    scrollbar-width: none;
+  }
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* ---------- Animations ---------- */
@@ -558,6 +563,7 @@
   justify-content: center;
   cursor: pointer;
   transition: background 0.15s;
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
 }
 .zoom-overlay-btn:hover { background: rgba(255,255,255,0.35); }
@@ -585,6 +591,7 @@
   position: fixed;
   inset: 0;
   background: rgba(0,0,0,0.5);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   z-index: 300;
   display: flex;
@@ -601,6 +608,35 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   white-space: nowrap;
+}
+
+/* ---------- Utility classes ---------- */
+.isolate {
+  isolation: isolate;
+}
+
+.tutorial-dropdown-container {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 250;
+}
+
+/* ---------- Dynamic Data Utilities ---------- */
+.dynamic-color {
+  color: var(--dynamic-color);
+}
+
+.dynamic-bg {
+  background: var(--dynamic-bg);
+}
+
+.dynamic-border {
+  border-color: var(--dynamic-border);
+}
+
+.progress-bar-fill {
+  width: var(--progress, 0%);
 }
 .balancer-table td {
   padding: 7px 10px;
