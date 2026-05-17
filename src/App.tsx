@@ -15,6 +15,7 @@ import { REACTIONS } from "./MoleculeLibrary";
 import { BalancerSimulation } from "./components/BalancerSimulation";
 import TenCard from "./components/ui/TenCard";
 import TenInput from "./components/ui/TenInput";
+import FeedbackCTA from "./components/FeedbackCTA";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Periodic Element Data
@@ -467,6 +468,109 @@ const CompletionModal = ({
 );
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Welcome / Instruction Modal
+// ─────────────────────────────────────────────────────────────────────────────
+const WelcomeModal = ({
+  lang,
+  onStart,
+  onGoToLab,
+  onGoToLibrary,
+  onClose,
+}: {
+  lang: "bn" | "en";
+  onStart: () => void;
+  onGoToLab: () => void;
+  onGoToLibrary: () => void;
+  onClose: () => void;
+}) => (
+  <div className="modal-overlay" onClick={onClose}>
+    <motion.div
+      initial={{ scale: 0.85, y: 24, opacity: 0 }}
+      animate={{ scale: 1,    y: 0,  opacity: 1 }}
+      exit={{    scale: 0.85, y: 24, opacity: 0 }}
+      transition={{ type: "spring", stiffness: 360, damping: 28 }}
+      className="bg-white rounded-[24px] max-w-[420px] w-full mx-4 shadow-[var(--sh-float)] overflow-hidden relative"
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Header Block */}
+      <div className="bg-[#1A1C29] p-6 text-white relative text-left">
+        <button 
+          onClick={onClose} 
+          className="absolute top-5 right-5 p-1.5 rounded-full bg-white/10 hover:bg-white/20 transition-all cursor-pointer"
+          title={lang === "bn" ? "বন্ধ করুন" : "Close"}
+        >
+          <X size={12} className="text-white" />
+        </button>
+        
+        <div className="flex items-center gap-2">
+          <span className="text-[var(--ten-red)] text-2xl leading-none">🎓</span>
+          <h3 className="text-lg font-bold bn text-white leading-tight">
+            {lang === "bn" ? "সিমুলেশন গাইড" : "Simulation Guide"}
+          </h3>
+        </div>
+        <p className="text-sm font-semibold text-white/95 mt-1.5 bn leading-tight">
+          {lang === "bn" ? "রসায়ন ল্যাবে স্বাগতম!" : "Welcome to Chemistry Lab!"}
+        </p>
+      </div>
+
+      {/* Middle Content */}
+      <div className="p-6 space-y-5 text-left">
+        <p className="text-xs text-[var(--gray-500)] leading-relaxed bn font-semibold">
+          {lang === "bn" 
+            ? "এই সিমুলেটরটি ব্যবহার করে আপনি রাসায়নিক সমীকরণ সমতা করতে শিখবেন এবং ভিজুয়াল ডায়াগ্রামের মাধ্যমে আণবিক গঠন বুঝতে পারবেন। নিচের বাটনগুলো ব্যবহার করে সরাসরি নির্দিষ্ট সেকশনে যেতে পারেন।"
+            : "Using this simulator, you will learn to balance chemical equations and understand molecular structures through visual diagrams. Use the buttons below to jump directly to a section."
+          }
+        </p>
+
+        {/* Option 1: Balancing Lab */}
+        <div 
+          onClick={onGoToLab}
+          className="flex items-center p-3.5 bg-[#FFF0F1] border border-[#FEE2E2] rounded-2xl cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
+        >
+          <div className="w-10 h-10 bg-[var(--ten-red)] text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+            <FlaskConical size={20} />
+          </div>
+          <div className="ml-4 text-left">
+            <p className="text-sm font-bold text-[var(--ten-ink)] bn">
+              {lang === "bn" ? "সমীকরণ সমতা ল্যাব" : "Equation Balancing Lab"}
+            </p>
+            <p className="text-[10px] text-[var(--gray-400)] font-semibold mt-0.5 bn">
+              {lang === "bn" ? "রাসায়নিক সমীকরণ সমতা করা শুরু করুন" : "Start balancing chemical equations"}
+            </p>
+          </div>
+        </div>
+
+        {/* Option 2: Reaction Library */}
+        <div 
+          onClick={onGoToLibrary}
+          className="flex items-center p-3.5 bg-[#EFF6FF] border border-[#DBEAFE] rounded-2xl cursor-pointer hover:scale-[1.02] active:scale-[0.98] transition-all"
+        >
+          <div className="w-10 h-10 bg-[#1D4ED8] text-white rounded-xl flex items-center justify-center shrink-0 shadow-sm">
+            <Library size={20} />
+          </div>
+          <div className="ml-4 text-left">
+            <p className="text-sm font-bold text-[var(--ten-ink)] bn">
+              {lang === "bn" ? "বিক্রিয়া লাইব্রেরি" : "Reaction Library"}
+            </p>
+            <p className="text-[10px] text-[var(--gray-400)] font-semibold mt-0.5 bn">
+              {lang === "bn" ? "সকল বিক্রিয়ার তালিকা ও বিস্তারিত দেখুন" : "View the list of all reactions and details"}
+            </p>
+          </div>
+        </div>
+
+        {/* Bottom Action Button */}
+        <button 
+          className="w-full bg-[#1A1C29] hover:bg-slate-800 text-white font-bold py-3.5 px-4 rounded-xl transition-all shadow-md mt-4 text-xs tracking-wide bn cursor-pointer"
+          onClick={onStart}
+        >
+          {lang === "bn" ? "সিমুলেশন শুরু করুন" : "Start Simulation"}
+        </button>
+      </div>
+    </motion.div>
+  </div>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Tutorial Dropdown content
 // ─────────────────────────────────────────────────────────────────────────────
 const TUTORIAL_STEPS = [
@@ -477,9 +581,10 @@ const TUTORIAL_STEPS = [
 ];
 
 const TutorialDropdownPanel = ({
-  stepsSeen, onStepSeen, onClose,
+  stepsSeen, onStepSeen, onClose, onOpenGuide, lang,
 }: {
   stepsSeen: Set<number>; onStepSeen: (n: number) => void; onClose: () => void;
+  onOpenGuide: () => void; lang: "bn" | "en";
 }) => (
   <div className="tutorial-dropdown">
     <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
@@ -513,11 +618,17 @@ const TutorialDropdownPanel = ({
         </div>
       ))}
     </div>
-    <div className="px-4 py-3 border-t border-[var(--border)] bg-[var(--gray-50)]">
+    <div className="px-4 py-3 border-t border-[var(--border)] bg-[var(--gray-50)] flex flex-col gap-2">
       {stepsSeen.size === 4
         ? <p className="text-[10px] font-bold text-[#15803D] bn text-center">✓ সব ধাপ শেষ! এখন নিজে চেষ্টা করো।</p>
         : <p className="text-[9px] text-[var(--gray-400)] text-center">{4 - stepsSeen.size}টি ধাপ বাকি আছে।</p>
       }
+      <button 
+        onClick={() => { onOpenGuide(); onClose(); }}
+        className="w-full text-center text-[10px] font-bold text-[var(--ten-red)] hover:underline flex items-center justify-center gap-1 mt-1 cursor-pointer"
+      >
+        <BookOpen size={10} /> {lang === "bn" ? "সিমুলেশন গাইড দেখুন" : "View Simulation Guide"}
+      </button>
     </div>
   </div>
 );
@@ -528,13 +639,14 @@ const TutorialDropdownPanel = ({
 const Navbar = ({
   onSearchClick, showTutorial, onTutorialToggle,
   tutorialStepsSeen, onStepSeen, solvedCount, totalCount,
-  lang, onLangToggle,
+  lang, onLangToggle, onOpenGuide,
 }: {
   onSearchClick: () => void;
   showTutorial: boolean; onTutorialToggle: () => void;
   tutorialStepsSeen: Set<number>; onStepSeen: (n: number) => void;
   solvedCount: number; totalCount: number;
   lang: "bn" | "en"; onLangToggle: () => void;
+  onOpenGuide: () => void;
 }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
@@ -592,6 +704,8 @@ const Navbar = ({
                 stepsSeen={tutorialStepsSeen}
                 onStepSeen={onStepSeen}
                 onClose={onTutorialToggle}
+                onOpenGuide={onOpenGuide}
+                lang={lang}
               />
             </motion.div>
           )}
@@ -902,27 +1016,50 @@ const MoleculeInfoCard = ({ molecule, coeff, role }: {
 // Main App
 // ─────────────────────────────────────────────────────────────────────────────
 export default function App() {
+  // Parse search params on initial load
+  const searchParams = new URLSearchParams(window.location.search);
+  
+  const initialTab = searchParams.get("tab") || "lab";
+  const initialReactionId = searchParams.get("reaction");
+  let initialIdx = 0;
+  if (initialReactionId) {
+    const idx = REACTIONS.findIndex((r) => r.id === initialReactionId);
+    if (idx !== -1) {
+      initialIdx = idx;
+    }
+  }
+  const initialLang = (searchParams.get("lang") === "en" || searchParams.get("lang") === "bn") 
+    ? (searchParams.get("lang") as "bn" | "en") 
+    : "bn";
+  const initialSegment = (searchParams.get("segment") === "All" || searchParams.get("segment") === "SSC" || searchParams.get("segment") === "HSC") 
+    ? (searchParams.get("segment") as "All" | "SSC" | "HSC") 
+    : "All";
+  const initialSimMode = (searchParams.get("sim") === "3d" || searchParams.get("sim") === "balancer") 
+    ? (searchParams.get("sim") as "3d" | "balancer") 
+    : "3d";
+
   // Core state
-  const [activeTab, setActiveTab]   = useState("lab");
-  const [currentIdx, setCurrentIdx] = useState(0);
+  const [activeTab, setActiveTab]   = useState(initialTab);
+  const [currentIdx, setCurrentIdx] = useState(initialIdx);
   const [coeffs, setCoeffs]         = useState<Record<string, number>>({});
   const [search, setSearch]         = useState("");
   const [showSummary, setShowSummary] = useState(false);
   const [checkLevel, setCheckLevel] = useState(0);
 
   // New feature state
-  const [simMode, setSimMode]     = useState<"3d" | "balancer">("3d");
+  const [simMode, setSimMode]     = useState<"3d" | "balancer">(initialSimMode);
   const [zoom3D, setZoom3D]       = useState(8);
   const [showBonds, setShowBonds] = useState(true);
   const [showMolarMass, setShowMolarMass] = useState(true);
   const [solvedReactions, setSolvedReactions] = useState<Set<string>>(new Set());
   const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [showWelcomeModal, setShowWelcomeModal] = useState(true);
   const [showTutorialDropdown, setShowTutorialDropdown] = useState(false);
   const [tutorialStepsSeen, setTutorialStepsSeen] = useState<Set<number>>(new Set());
   const [showOnlyUnsolved, setShowOnlyUnsolved] = useState(false);
   const [hoveredAtom, setHoveredAtom] = useState<{ symbol: string; x: number; y: number } | null>(null);
-  const [lang, setLang] = useState<"bn" | "en">("bn");
-  const [segmentFilter, setSegmentFilter] = useState<"All" | "SSC" | "HSC">("All");
+  const [lang, setLang] = useState<"bn" | "en">(initialLang);
+  const [segmentFilter, setSegmentFilter] = useState<"All" | "SSC" | "HSC">(initialSegment);
   const [selectedElement, setSelectedElement] = useState<string | null>(null);
 
   const controlsRef = useRef<any>(null);
@@ -944,6 +1081,85 @@ export default function App() {
     setShowSummary(false);
     prevBalanced.current = false;
   }, [currentIdx]);
+
+  // ── Synchronize State with URL parameters ────────────────────────────────
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const reactionId = REACTIONS[currentIdx]?.id;
+
+    const currentTabInUrl = params.get("tab");
+    const currentReactionInUrl = params.get("reaction");
+    const currentLangInUrl = params.get("lang");
+    const currentSegmentInUrl = params.get("segment");
+    const currentSimInUrl = params.get("sim");
+
+    const hasTabChanged = activeTab !== currentTabInUrl;
+    const hasReactionChanged = reactionId !== currentReactionInUrl;
+    const hasLangChanged = lang !== currentLangInUrl;
+    const hasSegmentChanged = segmentFilter !== currentSegmentInUrl;
+    const hasSimChanged = simMode !== currentSimInUrl;
+
+    if (hasTabChanged || hasReactionChanged || hasLangChanged || hasSegmentChanged || hasSimChanged) {
+      params.set("tab", activeTab);
+      if (reactionId) {
+        params.set("reaction", reactionId);
+      }
+      params.set("lang", lang);
+      params.set("segment", segmentFilter);
+      params.set("sim", simMode);
+
+      const newQuery = "?" + params.toString();
+
+      // Major state changes get pushState to support back/forward browser navigation
+      if (hasTabChanged || hasReactionChanged) {
+        if (window.location.search === "") {
+          window.history.replaceState(null, "", window.location.pathname + newQuery);
+        } else {
+          window.history.pushState(null, "", window.location.pathname + newQuery);
+        }
+      } else {
+        window.history.replaceState(null, "", window.location.pathname + newQuery);
+      }
+    }
+  }, [activeTab, currentIdx, lang, segmentFilter, simMode]);
+
+  // ── Listen to popstate event (back/forward browser buttons) ───────────────
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+
+      const tab = params.get("tab");
+      if (tab && ["home", "lab", "library", "profile"].includes(tab)) {
+        setActiveTab(tab);
+      }
+
+      const reactionId = params.get("reaction");
+      if (reactionId) {
+        const idx = REACTIONS.findIndex((r) => r.id === reactionId);
+        if (idx !== -1) {
+          setCurrentIdx(idx);
+        }
+      }
+
+      const l = params.get("lang");
+      if (l === "en" || l === "bn") {
+        setLang(l as "bn" | "en");
+      }
+
+      const segment = params.get("segment");
+      if (segment === "All" || segment === "SSC" || segment === "HSC") {
+        setSegmentFilter(segment as "All" | "SSC" | "HSC");
+      }
+
+      const sim = params.get("sim");
+      if (sim === "3d" || sim === "balancer") {
+        setSimMode(sim as "3d" | "balancer");
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
 
   // ── Derived state ────────────────────────────────────────────────────────
   const atomCounts = useMemo(() => {
@@ -1177,6 +1393,7 @@ export default function App() {
         totalCount={REACTIONS.length}
         lang={lang}
         onLangToggle={() => setLang((l) => l === "bn" ? "en" : "bn")}
+        onOpenGuide={() => setShowWelcomeModal(true)}
       />
 
       {/* Fixed atom hover tooltip */}
@@ -1728,6 +1945,28 @@ export default function App() {
           />
         )}
       </AnimatePresence>
+
+      {/* Welcome / Guide Modal */}
+      <AnimatePresence>
+        {showWelcomeModal && (
+          <WelcomeModal
+            lang={lang}
+            onStart={() => setShowWelcomeModal(false)}
+            onGoToLab={() => {
+              setActiveTab("lab");
+              setShowWelcomeModal(false);
+            }}
+            onGoToLibrary={() => {
+              setActiveTab("library");
+              setShowWelcomeModal(false);
+            }}
+            onClose={() => setShowWelcomeModal(false)}
+          />
+        )}
+      </AnimatePresence>
+
+      {/* Feedback CTA floating button and modal */}
+      {activeTab === "lab" && <FeedbackCTA lang={lang} />}
 
       <BottomNav activeTab={activeTab} setActiveTab={setActiveTab} lang={lang} />
     </div>
